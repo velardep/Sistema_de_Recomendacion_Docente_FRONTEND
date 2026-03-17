@@ -7,6 +7,8 @@ import OnboardingPage from '../pages/OnboardingPage';
 import DashboardPage from '../pages/DashboardPage';
 import RequireAuth from '../shared/guards/RequireAuth';
 
+
+
 const AppRouter: React.FC = () => {
   return (
     <Routes>

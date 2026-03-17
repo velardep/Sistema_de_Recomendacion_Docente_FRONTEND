@@ -5,6 +5,23 @@ import { IconPlus, IconSend, IconGrid, IconChat } from '../../shared/components/
 
 type UiMsg = { role: 'user' | 'assistant'; content: string };
 
+
+
+type EspacioArchivo = {
+  id: string;
+  filename_original: string;
+  mime_type: string;
+  size_bytes?: number | null;
+  deleted_at?: string | null;
+  created_at?: string;
+};
+
+const safeArray = <T,>(v: any): T[] => (Array.isArray(v) ? v : []);
+const safeString = (v: any): string => (typeof v === 'string' ? v : (v == null ? '' : String(v)));
+
+
+
+
 type CreateEspacioForm = {
   nombre: string;
   nivel: string;
@@ -12,6 +29,9 @@ type CreateEspacioForm = {
   materia: string;
   descripcion: string;
 };
+
+
+
 
 const EspaciosSection: React.FC = () => {
   const [espacios, setEspacios] = useState<Espacio[]>([]);
@@ -30,6 +50,21 @@ const EspaciosSection: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Layout UI states
+  const [showChatsSidebar, setShowChatsSidebar] = useState(true);
+  const [activeTab, setActiveTab] = useState<'chat' | 'archivos'>('chat');
+
+  const [showEspaciosSidebar, setShowEspaciosSidebar] = useState(true);
+
+  // NUEVO ESTADO PARA ARCHIVOS  
+  const [loadingArchivos, setLoadingArchivos] = useState(false);
+  const [archivosErr, setArchivosErr] = useState<string | null>(null);
+  const [archivos, setArchivos] = useState<EspacioArchivo[]>([]);
+
+  // ✅ para ocultar/mostrar el apartado dentro de la tab Archivos
+  const [showArchivosPanel, setShowArchivosPanel] = useState(true);
+
 
   // autoscroll
   useEffect(() => {
@@ -111,6 +146,14 @@ const EspaciosSection: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+    useEffect(() => {
+      if (activeTab === 'archivos' && selectedEspacio?.id) {
+        refreshArchivos(selectedEspacio.id);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab, selectedEspacio?.id]);
+
   const selectEspacio = async (e: Espacio) => {
     setSelectedEspacio(e);
     setSelectedConv(null);
@@ -127,6 +170,8 @@ const EspaciosSection: React.FC = () => {
       if (chats.length > 0) {
         await selectConv(e.id, chats[0]);
       }
+            // ✅ cargar archivos del espacio
+      await refreshArchivos(e.id);
     } catch (ex: any) {
       setErr(ex?.message ?? 'No se pudieron cargar los chats del espacio');
     } finally {
@@ -141,18 +186,48 @@ const EspaciosSection: React.FC = () => {
 
     setLoadingHistory(true);
     try {
-      const data = await espaciosService.getChat(espacioId, conv.id);
+      /*const data = await espaciosService.getChat(espacioId, conv.id);
       const mapped: UiMsg[] = (data.messages || []).map((m: EspacioMessageApi) => ({
         role: m.rol,
         content: m.contenido,
       }));
+      setMessages(mapped);*/
+      const data: any = await espaciosService.getChat(espacioId, conv.id);
+
+      const raw = safeArray<any>(data?.messages);
+      const mapped = raw
+        .map((m): UiMsg => ({
+          role: m?.rol === 'assistant' ? 'assistant' : 'user',
+          content: safeString(m?.contenido),
+        }))
+        .filter((m) => m.content.length > 0);
+
+
       setMessages(mapped);
+
     } catch (ex: any) {
       setErr(ex?.message ?? 'No se pudo cargar el historial del chat');
     } finally {
       setLoadingHistory(false);
     }
   };
+
+  const refreshArchivos = async (espacioId: string) => {
+    setArchivosErr(null);
+    setLoadingArchivos(true);
+    try {
+      const list = await (espaciosService as any).listArchivos(espacioId);
+      const alive = (list || []).filter((x: any) => !x.deleted_at);
+      setArchivos(alive);
+    } catch (e: any) {
+      setArchivosErr(e?.message ?? 'No se pudieron cargar los archivos');
+    } finally {
+      setLoadingArchivos(false);
+    }
+  };
+
+
+
 
   const handleNewChat = async () => {
     if (!selectedEspacio) return;
@@ -199,26 +274,97 @@ const EspaciosSection: React.FC = () => {
         ...prev,
         { role: res.assistant_message.rol, content: res.assistant_message.contenido },
       ]);
-    } catch (e: any) {
+    /*} catch (e: any) {
       setErr(e?.message ?? 'Error enviando mensaje');
     } finally {
       setSending(false);
+    }*/
+      } catch (e: any) {
+      const msg = e?.message ?? 'Error enviando mensaje';
+      setErr(msg);
+
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `⚠️ ${msg}` },
+      ]);
+    } finally {
+      setSending(false);
     }
+
   };
+
+
+
+  
 
   // -----------------------------
   // Subir archivos
   // -----------------------------
-  const [uploading, setUploading] = useState(false);
+  /*const [uploading, setUploading] = useState(false);
+
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);*/
+  // -----------------------------
+// Subir archivos
+// -----------------------------
+const [uploadProgressReal, setUploadProgressReal] = useState(0);   // progreso REAL
+const [uploadProgressUi, setUploadProgressUi] = useState(0);       // progreso SUAVIZADO (visual)
+const [uploadPhase, setUploadPhase] = useState<'idle'|'uploading'|'processing'>('idle');
+const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+
+const [uploading, setUploading] = useState(false);
+const [uploadPct, setUploadPct] = useState(0);
+
+const [processing, setProcessing] = useState(false);
+const [procPct, setProcPct] = useState(0);
+
+const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+
+const procTimerRef = useRef<number | null>(null);
+
+const stopProcAnim = () => {
+  if (procTimerRef.current) {
+    window.clearInterval(procTimerRef.current);
+    procTimerRef.current = null;
+  }
+};
+
+
+
+
+
+const startProcAnim = () => {
+  stopProcAnim();
+  setProcessing(true);
+  setProcPct(2);
+
+  // Animación suave: llega hasta 92% y se queda “esperando”
+  procTimerRef.current = window.setInterval(() => {
+    setProcPct((p) => {
+      if (p >= 92) return 92;
+      const next = p + Math.max(1, Math.round((92 - p) * 0.08));
+      return Math.min(92, next);
+    });
+  }, 250);
+};
+
+useEffect(() => {
+  return () => stopProcAnim(); // cleanup al desmontar
+}, []);
+
 
   const openFilePicker = () => {
     setUploadMsg(null);
     fileInputRef.current?.click();
   };
 
-  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  
+
+  /*const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f || !selectedEspacio) return;
@@ -233,71 +379,169 @@ const EspaciosSection: React.FC = () => {
     } finally {
       setUploading(false);
     }
+  };*/
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f || !selectedEspacio) return;
+
+    setUploadMsg(null);
+
+    // reset visual
+    setUploading(true);
+    setUploadPct(0);
+    setProcessing(false);
+    setProcPct(0);
+    stopProcAnim();
+
+    try {
+      // ✅ IMPORTANTE:
+      // aquí asumimos que tu upload ya emite progreso real (porque dijiste que ya lo viste contar).
+      // Solo conectamos ese % a la barra.
+      const res = await (espaciosService as any).uploadArchivo(
+        selectedEspacio.id,
+        f,
+        (pct: number) => {
+          const clamped = Math.max(0, Math.min(100, Math.round(pct)));
+          setUploadPct(clamped);
+
+          // cuando termina la subida, pasamos a “Procesando”
+          if (clamped >= 100 && !processing) {
+            setUploading(false);
+            startProcAnim();
+            setUploadMsg(`⏳ Archivo subido. Procesando contenido... (puede tardar si es grande)`);
+          }
+        }
+      );
+
+      // fin OK
+      stopProcAnim();
+      setProcessing(false);
+      setProcPct(100);
+      setUploading(false);
+      setUploadPct(100);
+
+      setUploadMsg(`✅ "${f.name}" subido correctamente. Chunks: ${res.chunks_insertados}`);
+
+            // ✅ refrescar listado de archivos
+      await refreshArchivos(selectedEspacio.id);
+
+    } catch (err: any) {
+      // Si cae aquí por “timeout” pero el backend sigue, NO lo trates como error fatal.
+      const raw = (err?.message ?? '').toLowerCase();
+
+      stopProcAnim();
+      setUploading(false);
+
+      if (raw.includes('timeout')) {
+        setProcessing(true);
+        setProcPct(92); // se queda como “en proceso”
+        setUploadPct(100);
+        setUploadMsg(
+          `⏳ "${f.name}" fue enviado. El servidor tardó en responder (archivo grande).\n` +
+          `Es normal: puede seguir procesando en segundo plano. Revisa en 1–3 min si ya aparece el contenido.`
+        );
+        return;
+      }
+
+      setProcessing(false);
+      setProcPct(0);
+      setUploadPct(0);
+
+      setUploadMsg(`❌ No se pudo subir "${f.name}". ${err?.message ?? 'Error'}`);
+    }
   };
+
+
+
+  useEffect(() => {
+    if (!uploading) return;
+
+    const t = setInterval(() => {
+      setUploadProgressUi((cur) => {
+        const target = uploadProgressReal;
+
+        // subir “suave” hacia el target
+        if (cur < target) {
+          const step = Math.max(1, Math.ceil((target - cur) * 0.2));
+          return Math.min(target, cur + step);
+        }
+
+        return cur;
+      });
+    }, 50);
+
+    return () => clearInterval(t);
+  }, [uploading, uploadProgressReal]);
+
+
 
   const espacioTitle = useMemo(() => selectedEspacio?.nombre ?? 'Espacios', [selectedEspacio]);
 
   return (
     <div className="flex h-full">
       {/* Sidebar Espacios */}
-      <div className="w-80 border-r border-border bg-black/20 overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-lg">Mis Espacios</h2>
-            <button
-              onClick={() => setOpenCreate(true)}
-              className="p-2 rounded-lg border border-accent/20 bg-accent/10 text-accent hover:bg-accent/20 transition-all"
-              title="Crear espacio"
-            >
-              <IconPlus className="w-5 h-5" />
-            </button>
-          </div>
+      {showEspaciosSidebar && (
 
-          {loadingEspacios ? (
-            <div className="mt-6 opacity-60 text-sm">Cargando espacios...</div>
-          ) : espacios.length === 0 ? (
-            <div className="mt-6 p-4 rounded-xl border border-border bg-card">
-              <div className="text-sm font-semibold">Aún no tienes espacios</div>
-              <div className="text-xs text-textSecondary mt-1">
-                Crea uno para iniciar tu chat contextual y subir material.
-              </div>
+        <div className="w-80 bg-sidebar text-textLight border-r border-borderDark">
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-lg">Mis Espacios</h2>
               <button
                 onClick={() => setOpenCreate(true)}
-                className="mt-4 w-full px-4 py-2 text-xs bg-accent text-white rounded-lg hover:bg-blue-600 transition-all"
+                className="p-2 rounded-lg border border-accent/20 bg-accent/10 text-accent hover:bg-accent/20 transition-all"
+                title="Crear espacio"
               >
-                Crear mi primer espacio
+                <IconPlus className="w-5 h-5" />
               </button>
             </div>
-          ) : (
-            <div className="space-y-3 mt-6">
-              {espacios.map((e) => (
-                <button
-                  key={e.id}
-                  onClick={() => selectEspacio(e)}
-                  className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
-                    selectedEspacio?.id === e.id
-                      ? 'bg-accent/10 border-accent/40 ring-1 ring-accent/40'
-                      : 'bg-card border-border hover:bg-white/5 hover:border-textSecondary/30'
-                  }`}
-                >
-                  <h4 className="font-semibold text-sm">{e.nombre}</h4>
-                  <p className="text-xs text-textSecondary mt-1 line-clamp-1">
-                    {e.materia} • {e.nivel} {e.grado}
-                  </p>
-                  {e.descripcion && (
-                    <p className="text-[11px] text-textSecondary mt-1 line-clamp-1">{e.descripcion}</p>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
+            {loadingEspacios ? (
+              <div className="mt-6 opacity-60 text-sm">Cargando espacios...</div>
+            ) : espacios.length === 0 ? (
+              <div className="mt-6 p-4 rounded-xl border border-border bg-card">
+                <div className="text-sm font-semibold">Aún no tienes espacios</div>
+                <div className="text-xs text-textSecondary mt-1">
+                  Crea uno para iniciar tu chat contextual y subir material.
+                </div>
+                <button
+                  onClick={() => setOpenCreate(true)}
+                  className="mt-4 w-full px-4 py-2 text-xs bg-accent text-black rounded-lg hover:bg-blue-600 transition-all"
+                >
+                  Crear mi primer espacio
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 mt-6">
+                {espacios.map((e) => (
+                  <button
+                    key={e.id}
+                    onClick={() => selectEspacio(e)}
+                    className={`w-full text-left p-4 rounded-xl border transition-all duration-200 ${
+                      selectedEspacio?.id === e.id
+                        ? 'bg-accent/10 border-accent/40 ring-1 ring-accent/40'
+                        : 'bg-card border-border hover:bg-white/5 hover:border-textSecondary/30'
+                    }`}
+                  >
+                    <h4 className="font-semibold text-sm">{e.nombre}</h4>
+                    <p className="text-xs text-textSecondary mt-1 line-clamp-1">
+                      {e.materia} • {e.nivel} {e.grado}
+                    </p>
+                    {e.descripcion && (
+                      <p className="text-[11px] text-textSecondary mt-1 line-clamp-1">{e.descripcion}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* Main */}
-      <div className="flex-1 flex flex-col bg-background/50">
+      <div className="flex-1 flex flex-col bg-background/50 relative">
+        
         {!selectedEspacio ? (
-          <div className="flex-1 flex flex-col items-center justify-center opacity-80">
+          <div className="flex-1 flex flex-col items-center justify-center opacity-100">
             <div className="p-8 rounded-full bg-accent/5 mb-6">
               <IconGrid className="w-24 h-24 text-accent" />
             </div>
@@ -308,57 +552,163 @@ const EspaciosSection: React.FC = () => {
 
             <button
               onClick={() => setOpenCreate(true)}
-              className="mt-6 px-6 py-3 text-sm bg-accent text-white rounded-xl hover:bg-blue-600 transition-all"
+              className="mt-6 px-6 py-3 text-sm bg-accent text-black rounded-xl hover:bg-white transition-all"
             >
               Crear espacio
             </button>
           </div>
         ) : (
           <>
-            <header className="p-6 border-b border-border flex items-center justify-between bg-card/30 backdrop-blur-md">
-              <div>
-                <h2 className="text-xl font-bold">{espacioTitle}</h2>
-                <p className="text-xs text-textSecondary mt-1">
-                  Chat contextual basado únicamente en el material del espacio
-                </p>
+
+
+
+
+            
+            <header className="p-6 border-b border-border bg-card/100 backdrop-blur-md">
+              {/* Top row */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h2 className="text-xl font-bold truncate">{espacioTitle}</h2>
+                  <p className="text-xs text-textSecondary mt-1">
+                    Chat contextual basado únicamente en el material del espacio
+                  </p>
+                </div>
+
+                {/* Actions + Upload (TU BLOQUE) */}
+                <div className="flex gap-2 items-start">
+                  <button
+                    onClick={() => setShowEspaciosSidebar((s) => !s)}
+                    className={`px-3 py-2 text-xs rounded-lg transition-all border ${
+                      showEspaciosSidebar
+                        ? 'border-border hover:bg-white/5'
+                        : 'bg-accent text-black border-accent'
+                    }`}
+                  >
+                    {showEspaciosSidebar ? 'Ocultar espacios' : 'Mostrar espacios'}
+                  </button>
+
+
+                  <button
+                    onClick={() => setShowChatsSidebar((s) => !s)}
+                    className={`px-3 py-2 text-xs rounded-lg transition-all border ${
+                      showChatsSidebar
+                        ? 'border-border hover:bg-white/5'
+                        : 'bg-accent text-black border-accent'
+                    }`}
+                  >
+                    {showChatsSidebar ? 'Ocultar chats' : 'Mostrar chats'}
+                  </button>
+
+                  <button
+                    onClick={handleNewChat}
+                    className="px-4 py-2 text-xs bg-accent/10 text-accent border border-accent/20 rounded-lg hover:bg-accent/20 transition-all"
+                  >
+                    Nuevo chat
+                  </button>
+
+                  {/* ✅ TU UPLOAD: botón + barras + input file */}
+                  <div className="flex flex-col gap-2 min-w-[260px]">
+                    <button
+                      onClick={openFilePicker}
+                      disabled={!selectedEspacio || uploading || processing}
+                      className="px-4 py-2 text-xs bg-accent/10 text-accent border border-accent/20 rounded-lg hover:bg-accent/20 transition-all disabled:opacity-50"
+                    >
+                      Subir Base de Conocimiento
+                    </button>
+
+                    {/* Barra 1: Subida */}
+                    {(uploading || uploadPct > 0) && (
+                      <div className="text-[11px] text-textSecondary">
+                        <div className="flex justify-between mb-1">
+                          <span>Subiendo</span>
+                          <span>{uploadPct}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-black border border-border overflow-hidden">
+                          <div className="h-full bg-accent transition-all" style={{ width: `${uploadPct}%` }} />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Barra 2: Procesamiento */}
+                    {processing && (
+                      <div className="text-[11px] text-textSecondary">
+                        <div className="flex justify-between mb-1">
+                          <span>Procesando</span>
+                          <span>{procPct}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-black/20 border border-border overflow-hidden">
+                          <div className="h-full bg-accent transition-all" style={{ width: `${procPct}%` }} />
+                        </div>
+                        <div className="mt-1 opacity-70">
+                          Esto depende del tamaño del PDF y del análisis (chunks/embeddings).
+                        </div>
+                      </div>
+                    )}
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.txt,.docx"
+                      className="hidden"
+                      onChange={onPickFile}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex gap-2">
+              {/* Tabs */}
+              <div className="mt-4 flex gap-2">
                 <button
-                  onClick={handleNewChat}
-                  className="px-4 py-2 text-xs bg-accent/10 text-accent border border-accent/20 rounded-lg hover:bg-accent/20 transition-all"
+                  onClick={() => setActiveTab('chat')}
+                  className={`px-4 py-2 text-xs rounded-lg transition-all ${
+                    activeTab === 'chat'
+                      ? 'bg-accent text-black'
+                      : 'bg-black/20 border border-border hover:bg-white/5'
+                  }`}
                 >
-                  Nuevo chat
+                  Chat
                 </button>
 
+                {/*
                 <button
-                  onClick={openFilePicker}
-                  disabled={!selectedEspacio || uploading}
-                  className="px-4 py-2 text-xs bg-accent/10 text-accent border border-accent/20 rounded-lg hover:bg-accent/20 transition-all disabled:opacity-50"
+                  onClick={() => setActiveTab('archivos')}
+                  className={`px-4 py-2 text-xs rounded-lg transition-all ${
+                    activeTab === 'archivos'
+                      ? 'bg-accent text-black'
+                      : 'bg-black/20 border border-border hover:bg-white/5'
+                  }`}
                 >
-                  {uploading ? 'Subiendo...' : 'Subir Base de Conocimiento'}
+                  Archivos
                 </button>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.txt"
-                  className="hidden"
-                  onChange={onPickFile}
-                />
-              </div>
+                */}
+                              </div>
             </header>
 
+
+
             {err && <div className="px-6 py-3 text-sm text-red-400 border-b border-border">{err}</div>}
-            {uploadMsg && (
-              <div className="px-6 py-3 text-sm border-b border-border">
-                <span className="text-textSecondary">{uploadMsg}</span>
-              </div>
-            )}
+              {uploadMsg && (
+                <div className="px-6 py-4 border-b border-border">
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <div className="text-emerald-400 text-lg">✔</div>
+                    <div className="text-sm text-emerald-300 font-medium">
+                      {uploadMsg}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            
 
             <div className="flex-1 flex overflow-hidden">
               {/* Sidebar Conversaciones del espacio */}
-              <div className="w-80 border-r border-border bg-black/10 overflow-y-auto">
+
+
+
+              {showChatsSidebar && (
+                <div className="w-80 border-r border-border bg-sidebar text-textLight border-r border-borderDark
+">
+
                 <div className="p-4 flex items-center justify-between">
                   <h3 className="text-sm font-bold flex items-center gap-2">
                     <IconChat className="w-4 h-4 text-accent" />
@@ -402,10 +752,13 @@ const EspaciosSection: React.FC = () => {
                     })}
                   </div>
                 )}
-              </div>
+                </div>
+          )}
+
 
               {/* Chat */}
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col transition-all">
+              {activeTab === 'chat' && (
                 <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6">
                   {loadingHistory ? (
                     <div className="h-full flex items-center justify-center opacity-60">Cargando historial...</div>
@@ -426,7 +779,7 @@ const EspaciosSection: React.FC = () => {
                           <div
                             className={`max-w-[85%] rounded-2xl px-5 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                               m.role === 'user'
-                                ? 'bg-accent text-white rounded-tr-none'
+                                ? 'bg-accent text-black rounded-tr-none'
                                 : 'bg-card border border-border rounded-tl-none'
                             }`}
                           >
@@ -448,7 +801,118 @@ const EspaciosSection: React.FC = () => {
                       )}
                     </>
                   )}
-                </div>
+                  </div>
+                )}
+
+
+                {/*
+                {activeTab === 'archivos' && (
+                  <div className="flex-1 overflow-y-auto p-6">
+                    <div className="max-w-4xl mx-auto">
+                      <div className="flex items-center justify-between gap-3 mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold">Archivos del espacio</h3>
+                          <p className="text-xs text-textSecondary mt-1">
+                            Estos archivos se guardan en Storage y el chat usa sus embeddings (se filtran eliminados).
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => setShowArchivosPanel((s) => !s)}
+                          className="px-3 py-2 text-xs rounded-lg border border-border hover:bg-white/5 transition-all"
+                        >
+                          {showArchivosPanel ? 'Ocultar apartado' : 'Mostrar apartado'}
+                        </button>
+                      </div>
+
+                      {showArchivosPanel && (
+                        <div className="p-5 border border-border rounded-2xl bg-card/40">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="text-sm font-semibold">Listado</div>
+                            <button
+                              onClick={() => selectedEspacio?.id && refreshArchivos(selectedEspacio.id)}
+                              className="px-3 py-2 text-xs rounded-lg border border-border hover:bg-white/5"
+                              disabled={loadingArchivos}
+                            >
+                              {loadingArchivos ? 'Actualizando...' : 'Actualizar'}
+                            </button>
+                          </div>
+
+                          {archivosErr && (
+                            <div className="mb-3 text-sm text-red-400">{archivosErr}</div>
+                          )}
+
+                          {loadingArchivos ? (
+                            <div className="text-sm opacity-60">Cargando archivos...</div>
+                          ) : archivos.length === 0 ? (
+                            <div className="text-sm text-textSecondary">
+                              Aún no hay archivos subidos en este espacio.
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {archivos.map((a) => (
+                                <div
+                                  key={a.id}
+                                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-card"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-semibold truncate">{a.filename_original}</div>
+                                    <div className="text-[11px] text-textSecondary mt-1">
+                                      {a.mime_type || 'archivo'} • {formatBytes(a.size_bytes || 0)}
+                                      {a.created_at ? ` • ${new Date(a.created_at).toLocaleString()}` : ''}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex gap-2 shrink-0">
+                                    <button
+                                      className="px-3 py-2 text-xs rounded-lg border border-border hover:bg-white/5"
+                                      onClick={async () => {
+                                        try {
+                                          const blob = await (espaciosService as any).downloadArchivo(a.id);
+                                          downloadBlob(blob, a.filename_original || 'archivo');
+                                        } catch (e: any) {
+                                          setArchivosErr(e?.message ?? 'No se pudo descargar');
+                                        }
+                                      }}
+                                    >
+                                      Descargar
+                                    </button>
+
+                                    <button
+                                      className="px-3 py-2 text-xs rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10"
+                                      onClick={async () => {
+                                        const ok = confirm(`¿Eliminar "${a.filename_original}"?`);
+                                        if (!ok) return;
+                                        try {
+                                          await (espaciosService as any).deleteArchivo(a.id);
+                                          await refreshArchivos(selectedEspacio!.id);
+                                        } catch (e: any) {
+                                          setArchivosErr(e?.message ?? 'No se pudo eliminar');
+                                        }
+                                      }}
+                                    >
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="mt-4 text-[11px] text-textSecondary opacity-80">
+                            Nota: Eliminar marca el archivo como borrado y se excluye del RAG.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                */}
+
+
+
+
+
 
                 {/* Input */}
                 <div className="p-6 border-t border-border">
@@ -460,7 +924,14 @@ const EspaciosSection: React.FC = () => {
                       }
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      /*onKeyDown={(e) => e.key === 'Enter' && handleSend()}*/
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as any).isComposing) {
+                          e.preventDefault();
+                          handleSend();
+                        }
+                      }}
+
                       disabled={!selectedConv || loadingHistory}
                     />
                     <button
@@ -523,14 +994,14 @@ const EspaciosSection: React.FC = () => {
                     setErr(null);
                   }
                 }}
-                className="px-4 py-2 text-xs rounded-lg border border-border hover:bg-white/5 transition-all"
+                className="px-4 py-2 text-xs rounded-lg border border-border hover:bg-white/50 transition-all"
                 disabled={creating}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleCreateEspacio}
-                className="px-4 py-2 text-xs rounded-lg bg-accent text-white hover:bg-blue-600 transition-all disabled:opacity-50"
+                className="px-4 py-2 text-xs rounded-lg bg-accent text-black hover:bg-white transition-all disabled:opacity-50"
                 disabled={creating}
               >
                 {creating ? 'Creando...' : 'Crear espacio'}
@@ -570,4 +1041,27 @@ function Field(props: {
   );
 }
 
+
+function formatBytes(bytes: number) {
+  if (!bytes || bytes < 1) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let b = bytes;
+  let i = 0;
+  while (b >= 1024 && i < units.length - 1) {
+    b /= 1024;
+    i++;
+  }
+  return `${b.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename || 'archivo';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
 export default EspaciosSection;

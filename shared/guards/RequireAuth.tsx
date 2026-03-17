@@ -27,8 +27,9 @@ const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       try {
         const me = await meService.getMe();
         setMe({ perfil: me.perfil });
-      } catch {
+      } catch (e) {
         logout();
+        // No navegues manualmente aquí, porque tu router ya reaccionará a token=null.
       } finally {
         setLoading(false);
       }

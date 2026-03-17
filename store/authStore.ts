@@ -1,71 +1,9 @@
-/*import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { User, Profile, AuthState } from '../types';
-import { meService } from '../services/meService';
-
-interface AuthActions {
-  setAccessToken: (token: string | null) => void;
-  setUser: (user: User | null) => void;
-  setPerfil: (perfil: Profile | null) => void;
-  setLoading: (loading: boolean) => void;
-  login: (token: string, user: User) => Promise<void>;
-  fetchMe: () => Promise<void>;
-  logout: () => void;
-}
-
-export const useAuthStore = create<AuthState & AuthActions>()(
-  persist(
-    (set, get) => ({
-      accessToken: null,
-      user: null,
-      perfil: null,
-      loading: false,
-      error: null,
-
-      setAccessToken: (token) => set({ accessToken: token }),
-      setUser: (user) => set({ user }),
-      setPerfil: (perfil) => set({ perfil }),
-      setLoading: (loading) => set({ loading }),
-
-      login: async (token, user) => {
-        set({ accessToken: token, user, loading: true });
-        try {
-          const { perfil } = await meService.getMe();
-          set({ perfil, loading: false });
-        } catch (error) {
-          set({ error: 'Error al obtener perfil', loading: false });
-        }
-      },
-
-      fetchMe: async () => {
-        if (!get().accessToken) return;
-        set({ loading: true });
-        try {
-          const { user, perfil } = await meService.getMe();
-          set({ user, perfil, loading: false });
-        } catch (error) {
-          set({ accessToken: null, user: null, perfil: null, loading: false });
-        }
-      },
-
-      logout: () => {
-        set({ accessToken: null, user: null, perfil: null, error: null });
-        localStorage.removeItem('nexus-auth-storage');
-      }
-    }),
-    {
-      name: 'nexus-auth-storage',
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ accessToken: state.accessToken }),
-    }
-  )
-);*/
 
 // store/authStore.ts
-import { create } from 'zustand';
+/*import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type User = { id: string; email: string; role?: string };
+export type User = { id: string; email: string; role?: string; name?: string; };
 
 type AuthState = {
   token: string | null;
@@ -100,8 +38,11 @@ export const useAuthStore = create<AuthState>()(
       setMe: ({ perfil }) =>
         set({ perfil, meLoaded: true }),
 
-      logout: () =>
-        set({ token: null, user: null, perfil: null, meLoaded: false, isAuthenticated: false }),
+      
+      logout: () => {
+        set({ token: null, user: null, perfil: null, meLoaded: false, isAuthenticated: false });
+        try { localStorage.removeItem('nexus_auth'); } catch {}
+      },
     }),
     {
       name: 'nexus_auth',
@@ -111,6 +52,66 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: s.isAuthenticated,
         perfil: s.perfil,
         meLoaded: s.meLoaded,
+      }),
+    }
+  )
+);*/
+
+// store/authStore.ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export type User = { id: string; email: string; role?: string; name?: string; };
+
+type AuthState = {
+  token: string | null;
+  user: User | null;
+
+  perfil: any | null;
+  meLoaded: boolean;
+
+  isAuthenticated: boolean;
+
+  setSession: (token: string, user: User) => void;
+  setMe: (payload: { perfil: any | null }) => void;
+
+  logout: () => void;
+};
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      token: null,
+      user: null,
+      perfil: null,
+      meLoaded: false,
+      isAuthenticated: false,
+
+      // ✅ IMPORTANTE: al iniciar sesión, limpiar perfil previo
+      setSession: (token, user) =>
+        set({
+          token,
+          user,
+          isAuthenticated: true,
+          perfil: null,
+          meLoaded: false,
+        }),
+
+      setMe: ({ perfil }) =>
+        set({ perfil, meLoaded: true }),
+
+      logout: () => {
+        set({ token: null, user: null, perfil: null, meLoaded: false, isAuthenticated: false });
+        try { localStorage.removeItem('sipre_auth'); } catch {}
+      },
+    }),
+    {
+      name: 'sipre_auth',
+      // ✅ Persistir SOLO lo mínimo; NO persistir banderas derivadas
+      partialize: (s) => ({
+        token: s.token,
+        user: s.user,
+        perfil: s.perfil,
       }),
     }
   )

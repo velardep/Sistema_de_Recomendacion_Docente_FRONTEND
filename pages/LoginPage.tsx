@@ -1,81 +1,8 @@
-/*import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { authService } from '../services/authService';
-import { useAuthStore } from '../store/authStore';
 
-const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { login } = useAuthStore();
-  const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await authService.login(email, password);
-      // login() del store ahora también dispara fetchMe()
-      await login(res.access_token, res.user);
-      // RequireAuth se encargará de redirigir a onboarding si es necesario
-      navigate('/dashboard');
-    } catch (err) {
-      alert("Credenciales incorrectas");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <div className="bg-card border border-border w-full max-w-md p-10 rounded-3xl shadow-2xl">
-        <h1 className="text-4xl font-black text-center mb-2 tracking-tight">Nexus</h1>
-        <p className="text-textSecondary text-center mb-10 text-sm">Tu asistente docente de nueva generación</p>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-textSecondary uppercase ml-1">Correo Electrónico</label>
-            <input 
-              type="email" 
-              className="w-full bg-background border border-border rounded-xl px-4 py-4 focus:outline-none focus:border-accent transition-all"
-              placeholder="nombre@colegio.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-textSecondary uppercase ml-1">Contraseña</label>
-            <input 
-              type="password" 
-              className="w-full bg-background border border-border rounded-xl px-4 py-4 focus:outline-none focus:border-accent transition-all"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-accent hover:bg-blue-600 text-white font-bold py-4 rounded-xl transition-all shadow-xl shadow-accent/20 disabled:opacity-50"
-          >
-            {loading ? 'Validando...' : 'Entrar'}
-          </button>
-        </form>
-        
-        <p className="mt-8 text-center text-sm text-textSecondary">
-          ¿Nuevo aquí? <Link to="/register" className="text-accent font-bold hover:underline">Crear cuenta</Link>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-export default LoginPage;*/
 
 // pages/LoginPage.tsx
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import { meService } from '../services/meService';
@@ -88,8 +15,15 @@ const LoginPage: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const canSubmit = useMemo(() => {
+    const e = email.trim();
+    return e.length > 3 && password.length >= 3 && !loading;
+  }, [email, password, loading]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,48 +38,157 @@ const LoginPage: React.FC = () => {
 
       if (me.perfil == null) nav('/onboarding', { replace: true });
       else nav('/dashboard', { replace: true });
-    } catch (e: any) {
-      setErr(e?.message ?? 'Login falló');
-    } finally {
+      } catch (error: any) {
+        const status = error?.response?.status;
+        const detail = error?.response?.data?.detail;
+
+        if (status === 404) {
+          setErr('CUENTA NO ENCONTRADA');
+        } else if (status === 401) {
+          setErr('CONTRASEÑA INCORRECTA');
+        } else if (status === 400 && detail) {
+          setErr(detail);
+        } else {
+          setErr('ERROR AL INICIAR SESIÓN, INTENTA DE NUEVO');
+        }
+      } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6">
-        <h1 className="text-xl font-semibold">Iniciar sesión</h1>
-        <p className="text-sm text-white/60 mt-1">Accede con tu cuenta</p>
+    <div className="min-h-screen bg-background text-white flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        {/* Brand header */}
+        <div className="mb-6">
+          <div className="inline-flex items-center gap-2">
+            <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+              <span className="text-accent font-black">N</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight">SIPRE</h1>
+              <p className="text-sm text-textSecondary">
+              </p>
+            </div>
+          </div>
+        </div>
 
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-          <input
-            className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 outline-none focus:border-white/25"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-          <input
-            className="w-full rounded-xl bg-black/40 border border-white/10 px-4 py-3 outline-none focus:border-white/25"
-            placeholder="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
+        {/* Card */}
+        <div className="bg-card border border-border rounded-2xl p-6 md:p-7 shadow-2xl">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold">Iniciar sesión</h2>
+              <p className="text-sm text-textSecondary mt-1">
+                Accede al sistema 
+              </p>
+            </div>
 
-          {err && <div className="text-sm text-red-400">{err}</div>}
+            {/* Accent badge */}
+            <div className="text-xs uppercase tracking-widest text-accent font-bold">
+              Docente
+            </div>
+          </div>
 
-          <button
-            disabled={loading}
-            className="w-full rounded-xl bg-white text-black font-medium py-3 disabled:opacity-60"
-          >
-            {loading ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
+          <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+            {/* Email */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-textSecondary uppercase ml-1">
+                Correo
+              </label>
+              <input
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 outline-none focus:border-accent/50 transition-all"
+                placeholder="nombre@gmail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                inputMode="email"
+                required
+              />
+            </div>
 
-        <div className="mt-4 text-sm text-white/60">
-          ¿No tienes cuenta? <Link className="text-white underline" to="/register">Regístrate</Link>
+            {/* Password */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-textSecondary uppercase ml-1">
+                Contraseña
+              </label>
+
+              <div className="relative">
+                <input
+                  className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 pr-12 outline-none focus:border-accent/50 transition-all"
+                  placeholder="••••••••"
+                  type={showPass ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPass((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-white/80 transition-all"
+                  aria-label={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPass ? 'Ocultar' : 'Ver'}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                
+                {/* Si luego tienes ruta real, cámbiala 
+                <span className="text-xs text-textSecondary">
+                  <span className="opacity-60">¿Olvidaste?</span>{' '}
+                  <button
+                    type="button"
+                    className="text-white underline decoration-white/30 hover:decoration-white transition"
+                    onClick={() => setErr('Aún no implementado: recuperación de contraseña')}
+                  >
+                    Recuperar
+                  </button>
+                </span>*/}
+              </div>
+            </div>
+
+            {/* Error */}
+            {err && (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {err}
+              </div>
+            )}
+
+            {/* Submit */}
+            <button
+              disabled={!canSubmit}
+              className="w-full bg-white/5 hover:bg-white/10 text-white py-3 rounded-xl border border-white/10 text-sm font-semibold transition-all disabled:opacity-50 disabled:hover:bg-white/5"
+            >
+              {loading ? 'Entrando…' : 'Entrar'}
+            </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 pt-2">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-xs text-textSecondary">o</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            {/* Secondary action */}
+            <Link
+              to="/register"
+              className="block w-full text-center bg-transparent hover:bg-white/5 text-white py-3 rounded-xl border border-white/10 text-sm font-medium transition-all"
+            >
+              Crear cuenta
+            </Link>
+          </form>
+
+          <div className="mt-6 text-xs text-textSecondary">
+            Al iniciar sesión aceptas que tu actividad sea analizada para mejorar tus recomendaciones y optimizar los modelos inteligentes del sistema en futuras versiones.
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 text-center text-xs text-textSecondary">
+          ¿Tienes problemas para entrar?{' '}
+          <span className="text-white/80">Revisa tu correo y contraseña.</span>
         </div>
       </div>
     </div>

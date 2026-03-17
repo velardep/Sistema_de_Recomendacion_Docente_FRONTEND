@@ -95,3 +95,18 @@ export interface EspacioMessageApi {
   metadatos?: any;
   created_at: string;
 }
+
+export interface Red3RecomendacionesResponse {
+  profile: any;
+  snapshot_7d: any;
+  snapshot_30d: any;
+  cards: Recomendacion[];           // 6 insights
+  recomendaciones: Recomendacion[]; // 8 acciones
+  meta?: {
+    cached?: boolean;
+    generated_at?: string;
+    expires_at?: string;
+    period_end?: string;
+    window_days?: number;
+  };
+}

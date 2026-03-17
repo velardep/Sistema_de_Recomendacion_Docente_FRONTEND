@@ -5,10 +5,15 @@ import { IconSend, IconChat } from '../../shared/components/Icons';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
-const LS_CHAT_GENERAL_ID = 'nexus_chat_general_id';
+//const LS_CHAT_GENERAL_ID = 'sipre_chat_general_id';
+
+const safeArray = <T,>(v: any): T[] => (Array.isArray(v) ? v : []);
+const safeString = (v: any): string => (typeof v === 'string' ? v : (v == null ? '' : String(v)));
+
 
 const ChatGeneralSection: React.FC = () => {
-  const [chatId, setChatId] = useState<string | null>(() => localStorage.getItem(LS_CHAT_GENERAL_ID));
+  //const [chatId, setChatId] = useState<string | null>(() => localStorage.getItem(LS_CHAT_GENERAL_ID));
+  const [chatId, setChatId] = useState<string | null>(null);
   const [chatList, setChatList] = useState<ChatApi[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -17,14 +22,34 @@ const ChatGeneralSection: React.FC = () => {
   const [err, setErr] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const loadChat = async (id: string) => {
+  const initRanRef = useRef(false);
+
+
+
+
+  /*const loadChat = async (id: string) => {
     const history = await chatsService.getChat(id);
     const mapped: ChatMessage[] = (history.messages || []).map((m) => ({
       role: m.role,
       content: m.content,
     }));
     setMessages(mapped);
+  };*/
+  const loadChat = async (id: string) => {
+    const history: any = await chatsService.getChat(id);
+
+    const raw = safeArray<any>(history?.messages);
+    const mapped: ChatMessage[] = raw
+      .map((m) => ({
+        role: m?.role === 'assistant' ? 'assistant' : 'user',
+        content: safeString(m?.content),
+      }) as ChatMessage)
+      .filter((m) => m.content.length > 0);
+
+
+    setMessages(mapped);
   };
+
 
   const refreshChats = async () => {
     const chats = await chatsService.listChats();
@@ -36,26 +61,35 @@ const ChatGeneralSection: React.FC = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, sending]);
 
-  // init
+ // init
   useEffect(() => {
+    // ✅ evita doble init (React StrictMode/dev y mounts dobles)
+    if (initRanRef.current) return;
+    initRanRef.current = true;
+
     const init = async () => {
       setErr(null);
       setLoadingInit(true);
       try {
-        await refreshChats();
+        // 1) Listar chats del usuario
+        const chats = await chatsService.listChats();
+        setChatList(chats);
 
-        let id = chatId;
+        // 2) Buscar "Chat General" existente
+        let selected = chats.find(
+          (c) => (c.titulo || '').trim().toLowerCase() === 'chat general'
+        );
 
-        // si no hay chat seleccionado -> crea uno
-        if (!id) {
-          const created = await chatsService.createChat('Chat General');
-          id = created.id;
-          setChatId(id);
-          localStorage.setItem(LS_CHAT_GENERAL_ID, id);
-          await refreshChats();
+        // 3) Si no existe, crearlo una sola vez
+        if (!selected) {
+          selected = await chatsService.createChat('Chat General');
+          const chats2 = await chatsService.listChats();
+          setChatList(chats2);
         }
 
-        await loadChat(id);
+        // 4) Seleccionar y cargar historial
+        setChatId(selected.id);
+        await loadChat(selected.id);
       } catch (e: any) {
         setErr(e?.message ?? 'Error cargando chat general');
       } finally {
@@ -72,7 +106,7 @@ const ChatGeneralSection: React.FC = () => {
     setLoadingInit(true);
     try {
       setChatId(id);
-      localStorage.setItem(LS_CHAT_GENERAL_ID, id);
+      //localStorage.setItem(LS_CHAT_GENERAL_ID, id);
       await loadChat(id);
     } catch (e: any) {
       setErr(e?.message ?? 'No se pudo cargar el chat');
@@ -89,7 +123,7 @@ const ChatGeneralSection: React.FC = () => {
       // título genérico; backend lo renombrará con la primera consulta
       const created = await chatsService.createChat('Chat General');
       setChatId(created.id);
-      localStorage.setItem(LS_CHAT_GENERAL_ID, created.id);
+      //localStorage.setItem(LS_CHAT_GENERAL_ID, created.id);
 
       await refreshChats();
       await loadChat(created.id);
@@ -126,12 +160,22 @@ const ChatGeneralSection: React.FC = () => {
 
       // refrescamos lista: por si el backend renombró el titulo con la primera consulta
       await refreshChats();
+    
     } catch (e: any) {
-      setErr(e?.message ?? 'Error enviando mensaje');
+      const msg = e?.message ?? 'Error enviando mensaje';
+      setErr(msg);
+
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `⚠️ ${msg}` },
+      ]);
     } finally {
       setSending(false);
     }
+
   };
+
+  
 
   return (
     <div className="flex-1 flex h-full">
@@ -204,7 +248,7 @@ const ChatGeneralSection: React.FC = () => {
                   <div
                     className={`max-w-[80%] rounded-2xl px-5 py-3 ${
                       m.role === 'user'
-                        ? 'bg-accent text-white rounded-tr-none'
+                        ? 'bg-accent text-black rounded-tr-none'
                         : 'bg-card border border-border rounded-tl-none'
                     }`}
                   >
@@ -235,7 +279,14 @@ const ChatGeneralSection: React.FC = () => {
               placeholder="Escribe tu mensaje aquí..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              /*onKeyDown={(e) => e.key === 'Enter' && handleSend()}*/
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey && !(e.nativeEvent as any).isComposing) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+
               disabled={loadingInit || !chatId}
             />
             <button

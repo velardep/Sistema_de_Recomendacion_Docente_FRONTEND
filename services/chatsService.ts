@@ -45,4 +45,8 @@ export const chatsService = {
 
   sendMessagePlus: (chatId: string, content: string) =>
     http.post<MessagesPlusResponse>(`/chats/${chatId}/messages-plus`, { content }),
+
+
+ 
+
 };

@@ -52,6 +52,19 @@ export type CreateEspacioPayload = {
   descripcion?: string;
 };
 
+export type EspacioArchivo = {
+  id: string;
+  docente_id: string;
+  espacio_id: string;
+  filename_original: string;
+  storage_path: string;
+  mime_type: string;
+  size_bytes?: number | null;
+  file_hash?: string | null;
+  deleted_at?: string | null;
+  created_at?: string;
+};
+
 export const espaciosService = {
   list: () => http.get<Espacio[]>('/espacios'),
 
@@ -77,14 +90,24 @@ export const espaciosService = {
       content,
     }),
 
-  // subir archivos al espacio
-  uploadArchivo: (espacioId: string, file: File) => {
+ 
+  // subir archivos al espacio (con progreso real)
+  uploadArchivo: (
+    espacioId: string,
+    file: File,
+    onProgress?: (percent: number) => void
+  ) => {
     const form = new FormData();
     form.append('file', file);
 
-    return http.postForm<{ ok: boolean; chunks_insertados: number; archivo: string }>(
+    return http.postFormWithProgress<{ ok: boolean; chunks_insertados: number; archivo: string }>(
       `/espacios/${espacioId}/archivos`,
-      form
+      form,
+      { onProgress }
     );
   },
+    
+
+    
+  
 };
