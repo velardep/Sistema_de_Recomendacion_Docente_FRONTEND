@@ -31,7 +31,7 @@ const Card: React.FC<{
         {item.descripcion}
       </p>
 
-      {/* 🔥 FEATURES REALES USADOS POR ESA CARD */}
+      {/* FEATURES REALES USADOS POR ESA CARD */}
       {featuresUsed.length > 0 && (
         <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-textSecondary mb-4 space-y-1 font-mono">
           {featuresUsed.map((f) => {
@@ -111,7 +111,7 @@ const RecomendacionesSection: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold mb-2">Para Ti</h1>
           <p className="text-textSecondary">
-            Sugerencias inteligentes basadas en tu actividad reciente (se recalcula cada pocos días)
+            Sugerencias inteligentes basadas en tu actividad reciente (se recalcula cada pocos días, puede tardar algunos segundos en actualizarse al hacer clic)
           </p>
         </div>
 

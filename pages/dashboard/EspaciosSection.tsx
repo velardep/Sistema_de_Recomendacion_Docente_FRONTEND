@@ -613,7 +613,7 @@ useEffect(() => {
                       disabled={!selectedEspacio || uploading || processing}
                       className="px-4 py-2 text-xs bg-accent/10 text-accent border border-accent/20 rounded-lg hover:bg-accent/20 transition-all disabled:opacity-50"
                     >
-                      Subir Base de Conocimiento
+                      Subir Base de Conocimiento, preferentemente en PDF (también se aceptan .docx)
                     </button>
 
                     {/* Barra 1: Subida */}
