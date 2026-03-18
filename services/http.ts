@@ -2,8 +2,8 @@
 // services/http.ts
 import { useAuthStore } from '../store/authStore';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-//const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.siprebolivia.site';
+//const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.siprebolivia.site';
 
 class HttpError extends Error {
   status: number;
