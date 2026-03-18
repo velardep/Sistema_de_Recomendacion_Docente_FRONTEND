@@ -616,7 +616,7 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                       </button>
                     </div>
 
-                    <div className="flex gap-2">
+                    {/*<div className="flex gap-2">
                       <button
                         onClick={() => setActiveTab('chat')}
                         className={`px-4 py-2 text-xs rounded-lg transition-all ${
@@ -628,7 +628,7 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                         Chat
                       </button>
 
-                      {/*
+                      
                       <button
                         onClick={() => setActiveTab('archivos')}
                         className={`px-4 py-2 text-xs rounded-lg transition-all ${
@@ -639,8 +639,8 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                       >
                         Archivos
                       </button>
-                      */}
-                    </div>
+                      
+                    </div>*/}
                   </div>
                 )}
               </div>
@@ -653,8 +653,8 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                     <div className="text-xs font-semibold text-textPrimary">
                       Base de conocimiento del espacio
                     </div>
-                    <div className="text-[11px] text-textSecondary mt-1">
-                      Sube material del espacio. Se recomienda PDF, también se aceptan docx.
+                    <div className="text-[13px] text-textSecondary mt-1">
+                      Sube material necesario, mientras mas pesado sea el archivo mas tardará en procesar, se recomienda no subir archivos de más de 50mb.
                     </div>
                   </div>
 
@@ -664,7 +664,7 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                       disabled={!selectedEspacio || uploading || processing}
                       className="w-full lg:w-auto px-4 py-2.5 text-xs bg-accent/10 text-accent border border-accent/20 rounded-lg hover:bg-accent/20 transition-all disabled:opacity-50"
                     >
-                      Subir archivo
+                      Subir Archivos PDF o DOCX unicamente
                     </button>
 
                     {(uploading || uploadPct > 0) && (
