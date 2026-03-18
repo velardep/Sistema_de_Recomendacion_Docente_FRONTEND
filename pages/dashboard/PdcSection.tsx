@@ -33,6 +33,11 @@ const fmtDate = (iso: string) => {
   }
 };
 
+const inputClass =
+  'w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent';
+const textareaClass =
+  'w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent';
+
 const PdcSection: React.FC = () => {
   const { perfil, user } = useAuthStore();
 
@@ -44,30 +49,30 @@ const PdcSection: React.FC = () => {
   const [form, setForm] = useState({
     identificacion: {
       unidad_educativa: perfil?.unidad_educativa || '',
-      nivel: '',                 // texto libre: "Secundaria Comunitaria Productiva"
-      anio_escolaridad: '',      // texto libre: "3er Año"
-      area: '',                  // "Biología - Geografía"
-      trimestre: '2do',          // default razonable
-      tiempo: '4 semanas',       // default razonable
+      nivel: '',
+      anio_escolaridad: '',
+      area: '',
+      trimestre: '2do',
+      tiempo: '4 semanas',
       docente: docenteNombre,
     },
     contexto: {
       psp_titulo: '',
       psp_actividad: '',
-      objetivo_holistico_pat: '', // input del docente
+      objetivo_holistico_pat: '',
     },
     variables: {
-      contenidos: '', // texto multilinea
+      contenidos: '',
     },
   });
 
   const [preview, setPreview] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ MENU
+  // MENU
   const [view, setView] = useState<'generar' | 'mis_pdc'>('generar');
 
-  // ✅ Biblioteca
+  // Biblioteca
   const [libLoading, setLibLoading] = useState(false);
   const [libItems, setLibItems] = useState<PdcLibItem[]>([]);
   const [libQ, setLibQ] = useState('');
@@ -137,7 +142,6 @@ const PdcSection: React.FC = () => {
 
   useEffect(() => {
     if (view === 'mis_pdc') refreshLibrary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
   const filteredItems = useMemo(() => {
@@ -149,18 +153,13 @@ const PdcSection: React.FC = () => {
   const onPickUpload = async (file?: File | null) => {
     if (!file) return;
 
-    /*const name = file.name.toLowerCase();
-    if (!name.endsWith('.docx')) {
-      alert('Solo se permite .docx');
-      return;
-    }*/
     const name = file.name.toLowerCase();
     const isDocx = name.endsWith('.docx');
     const isPdf = name.endsWith('.pdf');
 
     if (!(isDocx || isPdf)) {
-    alert('Solo se permite .docx o .pdf');
-    return;
+      alert('Solo se permite .docx o .pdf');
+      return;
     }
 
     setUploading(true);
@@ -204,21 +203,20 @@ const PdcSection: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-10">
-
+    <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8 xl:p-10">
       {/* MENU */}
-      <div className="max-w-7xl mx-auto mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-textPrimary">PDC</h1>
-          <p className="text-sm text-textSecondary">
+      <div className="max-w-7xl mx-auto mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-textPrimary">PDC</h1>
+          <p className="text-sm text-textSecondary mt-1 max-w-2xl">
             Genera un PDC o administra tu biblioteca de documentos finales.
           </p>
         </div>
 
-        <div className="inline-flex rounded-xl border border-border overflow-hidden">
+        <div className="inline-flex w-full sm:w-auto rounded-xl border border-border overflow-hidden">
           <button
             onClick={() => setView('generar')}
-            className={`px-4 py-2 text-sm font-semibold transition ${
+            className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-semibold transition ${
               view === 'generar'
                 ? 'bg-accent text-white'
                 : 'bg-card text-textPrimary hover:opacity-90'
@@ -228,7 +226,7 @@ const PdcSection: React.FC = () => {
           </button>
           <button
             onClick={() => setView('mis_pdc')}
-            className={`px-4 py-2 text-sm font-semibold transition ${
+            className={`flex-1 sm:flex-none px-4 py-2.5 text-sm font-semibold transition ${
               view === 'mis_pdc'
                 ? 'bg-accent text-white'
                 : 'bg-card text-textPrimary hover:opacity-90'
@@ -240,12 +238,11 @@ const PdcSection: React.FC = () => {
       </div>
 
       {view === 'generar' ? (
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
-
+        <div className="max-w-7xl mx-auto grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-8">
           {/* FORM */}
-          <div className="bg-card p-8 rounded-2xl border border-border shadow-lg space-y-6">
+          <div className="bg-card p-5 sm:p-6 lg:p-8 rounded-2xl border border-border shadow-lg space-y-6">
             <div className="space-y-1">
-              <h2 className="text-3xl font-bold text-textPrimary">
+              <h2 className="text-2xl sm:text-3xl font-bold text-textPrimary">
                 Generar Plan de Desarrollo Curricular (PDC)
               </h2>
               <p className="text-sm text-textSecondary">
@@ -254,12 +251,12 @@ const PdcSection: React.FC = () => {
             </div>
 
             {/* Datos referenciales */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
               <Field label="Unidad Educativa">
                 <input
                   value={form.identificacion.unidad_educativa}
                   onChange={e => update('identificacion.unidad_educativa', e.target.value)}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={inputClass}
                   placeholder="Ej: U.E. Juan XXIII"
                 />
               </Field>
@@ -268,7 +265,7 @@ const PdcSection: React.FC = () => {
                 <input
                   value={form.identificacion.docente}
                   onChange={e => update('identificacion.docente', e.target.value)}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={inputClass}
                   placeholder="Ej: María Pérez"
                 />
               </Field>
@@ -277,7 +274,7 @@ const PdcSection: React.FC = () => {
                 <input
                   value={form.identificacion.nivel}
                   onChange={e => update('identificacion.nivel', e.target.value)}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={inputClass}
                   placeholder="Ej: Secundaria Comunitaria Productiva"
                 />
               </Field>
@@ -286,7 +283,7 @@ const PdcSection: React.FC = () => {
                 <input
                   value={form.identificacion.anio_escolaridad}
                   onChange={e => update('identificacion.anio_escolaridad', e.target.value)}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={inputClass}
                   placeholder="Ej: 3er Año"
                 />
               </Field>
@@ -295,7 +292,7 @@ const PdcSection: React.FC = () => {
                 <select
                   value={form.identificacion.trimestre}
                   onChange={e => update('identificacion.trimestre', e.target.value)}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={inputClass}
                 >
                   <option value="1ro">1ro</option>
                   <option value="2do">2do</option>
@@ -307,7 +304,7 @@ const PdcSection: React.FC = () => {
                 <input
                   value={form.identificacion.tiempo}
                   onChange={e => update('identificacion.tiempo', e.target.value)}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={inputClass}
                   placeholder="Ej: 4 semanas"
                 />
               </Field>
@@ -317,7 +314,7 @@ const PdcSection: React.FC = () => {
               <input
                 value={form.identificacion.area}
                 onChange={e => update('identificacion.area', e.target.value)}
-                className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                className={inputClass}
                 placeholder="Ej: Biología - Geografía"
               />
             </Field>
@@ -331,7 +328,7 @@ const PdcSection: React.FC = () => {
                   value={form.contexto.psp_titulo}
                   onChange={e => update('contexto.psp_titulo', e.target.value)}
                   rows={3}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={textareaClass}
                   placeholder='Ej: "Fortalecimiento de la salud comunitaria y prevención del consumo de drogas"'
                 />
               </Field>
@@ -341,7 +338,7 @@ const PdcSection: React.FC = () => {
                   value={form.contexto.psp_actividad}
                   onChange={e => update('contexto.psp_actividad', e.target.value)}
                   rows={3}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={textareaClass}
                   placeholder="Ej: Taller de sensibilización sobre efectos químicos de sustancias en el cuerpo."
                 />
               </Field>
@@ -351,7 +348,7 @@ const PdcSection: React.FC = () => {
                   value={form.contexto.objetivo_holistico_pat}
                   onChange={e => update('contexto.objetivo_holistico_pat', e.target.value)}
                   rows={3}
-                  className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                  className={textareaClass}
                   placeholder="Ej: Desarrollamos principios de responsabilidad (Ser) mediante el estudio de la vida (Saber) para promover la salud integral (Decidir)."
                 />
               </Field>
@@ -366,8 +363,8 @@ const PdcSection: React.FC = () => {
                 value={form.variables.contenidos}
                 onChange={e => update('variables.contenidos', e.target.value)}
                 rows={5}
-                className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
-                placeholder={"1. La célula y sus funciones.\n2. Tipos de tejidos orgánicos."}
+                className={textareaClass}
+                placeholder={'1. La célula y sus funciones.\n2. Tipos de tejidos orgánicos.'}
               />
             </div>
 
@@ -381,8 +378,8 @@ const PdcSection: React.FC = () => {
           </div>
 
           {/* PREVIEW */}
-          <div className="bg-card p-8 rounded-2xl border border-border shadow-lg">
-            <h3 className="text-2xl font-semibold text-textPrimary mb-6">
+          <div className="bg-card p-5 sm:p-6 lg:p-8 rounded-2xl border border-border shadow-lg">
+            <h3 className="text-xl sm:text-2xl font-semibold text-textPrimary mb-6">
               Vista previa (Inputs)
             </h3>
 
@@ -416,19 +413,21 @@ const PdcSection: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <p className="text-textSecondary">
-                Completa el formulario y genera el documento para ver la vista previa.
-              </p>
+              <div className="rounded-xl border border-border bg-background/40 p-5">
+                <p className="text-textSecondary">
+                  Completa el formulario y genera el documento para ver la vista previa.
+                </p>
+              </div>
             )}
           </div>
         </div>
       ) : (
         <div className="max-w-7xl mx-auto">
-          <div className="bg-card p-8 rounded-2xl border border-border shadow-lg space-y-6">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h2 className="text-3xl font-bold text-textPrimary">Mis PDC</h2>
-                <p className="text-sm text-textSecondary">
+          <div className="bg-card p-5 sm:p-6 lg:p-8 rounded-2xl border border-border shadow-lg space-y-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-2xl sm:text-3xl font-bold text-textPrimary">Mis PDC</h2>
+                <p className="text-sm text-textSecondary mt-1 max-w-2xl">
                   Sube aquí únicamente los DOCX que ya revisaste y consideras finales.
                 </p>
               </div>
@@ -436,19 +435,20 @@ const PdcSection: React.FC = () => {
               <button
                 onClick={refreshLibrary}
                 disabled={libLoading}
-                className="px-4 py-2 rounded-xl border border-border bg-background hover:opacity-90 text-textPrimary"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-border bg-background hover:opacity-90 text-textPrimary"
               >
                 {libLoading ? 'Actualizando...' : 'Refrescar'}
               </button>
             </div>
 
-            <div className="border border-border rounded-xl p-4 bg-background/40 space-y-3">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="text-sm text-textSecondary">Formato permitido: 
-                    <span className="font-semibold text-textPrimary">.docx, .pdf</span>
+            <div className="border border-border rounded-xl p-4 bg-background/40 space-y-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="text-sm text-textSecondary">
+                  Formato permitido:{' '}
+                  <span className="font-semibold text-textPrimary">.docx, .pdf</span>
                 </div>
 
-                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-white font-semibold cursor-pointer hover:opacity-90">
+                <label className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-accent text-white font-semibold cursor-pointer hover:opacity-90 w-full sm:w-auto">
                   <input
                     type="file"
                     accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -456,14 +456,14 @@ const PdcSection: React.FC = () => {
                     onChange={(e) => onPickUpload(e.target.files?.[0])}
                     disabled={uploading}
                   />
-                    {uploading ? 'Subiendo...' : 'Subir archivo'}
+                  {uploading ? 'Subiendo...' : 'Subir archivo'}
                 </label>
               </div>
 
               {uploading && (
                 <div className="space-y-2">
                   <div className="h-2 w-full rounded bg-border overflow-hidden">
-                    <div className="h-2 bg-accent" style={{ width: `${uploadPct}%` }} />
+                    <div className="h-2 bg-accent transition-all" style={{ width: `${uploadPct}%` }} />
                   </div>
                   <p className="text-xs text-textSecondary">Progreso: {uploadPct}%</p>
                 </div>
@@ -475,14 +475,15 @@ const PdcSection: React.FC = () => {
                 value={libQ}
                 onChange={(e) => setLibQ(e.target.value)}
                 placeholder="Buscar por nombre..."
-                className="w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent"
+                className={inputClass}
               />
             </div>
 
-            <div className="border border-border rounded-xl overflow-hidden">
+            {/* Desktop / tablet table */}
+            <div className="hidden md:block border border-border rounded-xl overflow-hidden">
               <div className="grid grid-cols-12 gap-0 bg-background/60 px-4 py-3 text-xs font-semibold text-textSecondary">
-                <div className="col-span-6">Documento</div>
-                <div className="col-span-3">Fecha</div>
+                <div className="col-span-5 lg:col-span-6">Documento</div>
+                <div className="col-span-4 lg:col-span-3">Fecha</div>
                 <div className="col-span-1">Tamaño</div>
                 <div className="col-span-2 text-right">Acciones</div>
               </div>
@@ -494,13 +495,13 @@ const PdcSection: React.FC = () => {
               ) : (
                 <div className="divide-y divide-border">
                   {filteredItems.map((it) => (
-                    <div key={it.id} className="grid grid-cols-12 px-4 py-3 items-center">
-                      <div className="col-span-6">
+                    <div key={it.id} className="grid grid-cols-12 px-4 py-3 items-center gap-3">
+                      <div className="col-span-5 lg:col-span-6 min-w-0">
                         <p className="font-semibold text-textPrimary truncate">{it.original_name}</p>
                         <p className="text-xs text-textSecondary truncate">{it.storage_path}</p>
                       </div>
 
-                      <div className="col-span-3 text-sm text-textPrimary">
+                      <div className="col-span-4 lg:col-span-3 text-sm text-textPrimary min-w-0">
                         {fmtDate(it.created_at)}
                       </div>
 
@@ -529,6 +530,53 @@ const PdcSection: React.FC = () => {
               )}
             </div>
 
+            {/* Mobile cards */}
+            <div className="md:hidden space-y-3">
+              {filteredItems.length === 0 ? (
+                <div className="border border-border rounded-xl px-4 py-6 text-sm text-textSecondary bg-background/40">
+                  {libLoading ? 'Cargando...' : 'No hay documentos en tu biblioteca.'}
+                </div>
+              ) : (
+                filteredItems.map((it) => (
+                  <div
+                    key={it.id}
+                    className="border border-border rounded-2xl bg-background/40 p-4 space-y-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-textPrimary break-words">{it.original_name}</p>
+                      <p className="text-xs text-textSecondary mt-1 break-all">{it.storage_path}</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2 text-sm">
+                      <div>
+                        <p className="text-[11px] text-textSecondary">Fecha</p>
+                        <p className="text-textPrimary">{fmtDate(it.created_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-textSecondary">Tamaño</p>
+                        <p className="text-textPrimary">{fmtBytes(it.size_bytes)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-background hover:opacity-90 text-textPrimary text-sm"
+                        onClick={() => onDownload(it)}
+                      >
+                        Descargar
+                      </button>
+
+                      <button
+                        className="w-full px-3 py-2 rounded-lg border border-red-300 bg-red-50 hover:opacity-90 text-red-700 text-sm"
+                        onClick={() => onDelete(it)}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -553,7 +601,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 const KV: React.FC<{ k: string; v?: string }> = ({ k, v }) => (
   <div>
     <p className="text-xs text-textSecondary">{k}</p>
-    <p className="font-medium whitespace-pre-wrap">{v || ''}</p>
+    <p className="font-medium whitespace-pre-wrap break-words">{v || ''}</p>
   </div>
 );
 

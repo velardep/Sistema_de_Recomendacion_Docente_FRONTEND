@@ -1,76 +1,3 @@
-
-/*import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { authService } from '../services/authService';
-
-const RegisterPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await authService.register(email, password);
-      alert("Registro exitoso. Ahora inicia sesión.");
-      navigate('/login');
-    } catch (err) {
-      alert("Error al registrarse");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="bg-card border border-border w-full max-w-md p-8 rounded-2xl shadow-xl">
-        <h1 className="text-3xl font-bold text-center mb-2">Crea tu cuenta</h1>
-        <p className="text-textSecondary text-center mb-8">Únete a la nueva era de colaboración</p>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
-            <input 
-              type="email" 
-              className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-              placeholder="nombre@ejemplo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-2">Contraseña</label>
-            <input 
-              type="password" 
-              className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-accent hover:bg-blue-600 text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-50"
-          >
-            {loading ? 'Registrando...' : 'Registrarse'}
-          </button>
-        </form>
-        
-        <p className="mt-8 text-center text-textSecondary">
-          ¿Ya tienes cuenta? <Link to="/login" className="text-accent hover:underline">Inicia sesión</Link>
-        </p>
-      </div>
-    </div>
-  );
-};
-
-export default RegisterPage;*/
-
 // pages/RegisterPage.tsx
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -122,7 +49,7 @@ const RegisterPage: React.FC = () => {
         <div className="mb-6">
           <div className="inline-flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <span className="text-accent font-black">N</span>
+              <span className="text-accent font-black">S</span>
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">SIPRE</h1>

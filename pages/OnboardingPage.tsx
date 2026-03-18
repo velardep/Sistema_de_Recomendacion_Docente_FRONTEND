@@ -1,86 +1,3 @@
-/*import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { meService } from '../services/meService';
-import { useAuthStore } from '../store/authStore';
-import { Profile } from '../types';
-
-const OnboardingPage: React.FC = () => {
-  const { setPerfil } = useAuthStore();
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<Profile>({
-    nombres: '',
-    apellidos: '',
-    unidad_educativa: '',
-    nivel: '',
-    grado: '',
-    ciudad: '',
-    departamento: '',
-    preferencias: { tono: 'Informativo', detalle: 'Medio' }
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFinish = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await meService.upsertPerfil(form);
-      setPerfil(res);
-      navigate('/dashboard');
-    } catch (err) {
-      alert("Error al guardar perfil");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="bg-card border border-border w-full max-w-4xl p-10 rounded-3xl shadow-2xl overflow-y-auto max-h-[90vh]">
-        <h1 className="text-3xl font-bold mb-2">Bienvenido a Nexus</h1>
-        <p className="text-textSecondary mb-8 text-lg">Completa tu perfil docente para una experiencia personalizada.</p>
-        
-        <form onSubmit={handleFinish} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Input label="Nombres" name="nombres" value={form.nombres} onChange={handleChange} required />
-          <Input label="Apellidos" name="apellidos" value={form.apellidos} onChange={handleChange} required />
-          <Input label="Unidad Educativa" name="unidad_educativa" value={form.unidad_educativa} onChange={handleChange} required />
-          <Input label="Nivel" name="nivel" value={form.nivel} onChange={handleChange} required />
-          <Input label="Grado" name="grado" value={form.grado} onChange={handleChange} required />
-          <Input label="Ciudad" name="ciudad" value={form.ciudad} onChange={handleChange} required />
-          <Input label="Departamento" name="departamento" value={form.departamento} onChange={handleChange} required />
-          
-          <div className="md:col-span-2 flex justify-end mt-4">
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="bg-accent hover:bg-blue-600 text-white font-bold px-10 py-4 rounded-xl transition-all shadow-lg shadow-accent/20"
-            >
-              {loading ? 'Guardando...' : 'Finalizar Configuración'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-const Input = ({ label, ...props }: any) => (
-  <div className="flex flex-col gap-2">
-    <label className="text-sm font-semibold text-textSecondary">{label}</label>
-    <input 
-      className="bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-      {...props}
-    />
-  </div>
-);
-
-export default OnboardingPage;*/
-
-// pages/OnboardingPage.tsx
 // pages/OnboardingPage.tsx
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -157,7 +74,7 @@ const OnboardingPage: React.FC = () => {
         <div className="mb-6">
           <div className="inline-flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <span className="text-accent font-black">N</span>
+              <span className="text-accent font-black">S</span>
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">Completa tu perfil</h1>
@@ -376,7 +293,7 @@ const OnboardingPage: React.FC = () => {
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-textSecondary">
-          Tu perfil se puede editar más adelante desde tu panel.
+          Disfruta la esta primera version.
         </div>
       </div>
     </div>

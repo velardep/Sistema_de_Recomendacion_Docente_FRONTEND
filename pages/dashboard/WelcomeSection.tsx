@@ -22,8 +22,8 @@ const WelcomeSection: React.FC = () => {
           </div>
           <h1 className="text-3xl font-bold mb-2">Bienvenido, {nombre}</h1>
           <p className="text-textSecondary max-w-3xl">
-            Este sistema fue pensado para apoyar el trabajo docente de forma práctica:
-            ayudarte a resolver dudas, aprovechar tus materiales, recibir sugerencias
+            Este prototipo fue pensado para apoyar el trabajo docente de forma práctica.
+            Ayudarte a resolver dudas, aprovechar tus materiales, recibir sugerencias
             útiles y construir un PDC con mayor acompañamiento.
           </p>
         </div>
@@ -47,7 +47,7 @@ const WelcomeSection: React.FC = () => {
               ¿Por qué existe este sistema?
             </div>
             <h2 className="text-xl md:text-2xl font-bold mb-3">
-              Un apoyo para la carga real del trabajo docente
+              Un apoyo para la carga real del trabajo docente.
             </h2>
             <p className="text-textSecondary text-sm leading-7">
               En la práctica, muchos docentes deben planificar, preparar materiales,
@@ -57,11 +57,11 @@ const WelcomeSection: React.FC = () => {
               necesidades concretas del contexto educativo boliviano.
             </p>
             <p className="text-textSecondary text-sm leading-7 mt-4">
-              Este sistema busca responder a ese problema: no pretende reemplazar al
+              Este sistema busca responder a ese problema. No pretende reemplazar al
               docente, sino brindarle una herramienta de apoyo para ahorrar tiempo,
               ordenar mejor la información, aprovechar materiales ya existentes y
               facilitar decisiones pedagógicas cotidianas. La idea central es que el
-              docente pueda concentrarse más en enseñar y acompañar, y menos en repetir
+              docente pueda concentrarse más en enseñar y acompañar y menos en repetir
               tareas operativas una y otra vez.
             </p>
           </div>
@@ -83,7 +83,7 @@ const WelcomeSection: React.FC = () => {
             <p className="text-textSecondary text-sm leading-7 mt-4">
               En lugar de trabajar como una búsqueda rígida, el sistema intenta entender
               mejor lo que el docente necesita dentro de un contexto educativo real.
-              Esto permite orientar funciones hacia tareas frecuentes del sistema
+              Permitiendo orientar funciones hacia tareas frecuentes del sistema
               educativo boliviano, como aclarar contenidos, recuperar información desde
               materiales propios, sugerir acciones útiles y apoyar la elaboración de
               documentos pedagógicos. Aun así, la decisión final siempre sigue siendo del docente.
@@ -191,7 +191,8 @@ const WelcomeSection: React.FC = () => {
             </div>
             <h3 className="text-xl font-bold mb-3">Qué es, qué hace y cómo funciona</h3>
             <p className="text-textSecondary text-sm leading-7">
-              La sección de PDC está orientada a apoyar la construcción de este documento
+              La sección de PDC (Planificacion de Desarrollo Curricular) está orientada a 
+              apoyar la construcción de este documento 
               pedagógico de una manera más guiada. Su propósito es ayudar al docente a
               avanzar con mayor orden, claridad y respaldo, reduciendo el tiempo que
               normalmente toma estructurar este tipo de planificación.

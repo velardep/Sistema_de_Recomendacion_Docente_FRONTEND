@@ -1,6 +1,3 @@
-
-
-
 // pages/LoginPage.tsx
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -63,7 +60,7 @@ const LoginPage: React.FC = () => {
         <div className="mb-6">
           <div className="inline-flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-              <span className="text-accent font-black">N</span>
+              <span className="text-accent font-black">S</span>
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">SIPRE</h1>
