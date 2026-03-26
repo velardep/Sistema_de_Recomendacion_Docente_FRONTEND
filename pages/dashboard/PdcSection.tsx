@@ -37,6 +37,7 @@ const inputClass =
   'w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent';
 const textareaClass =
   'w-full bg-white text-black rounded-lg px-4 py-3 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-accent';
+  type PlanningMode = 'with_psp' | 'without_psp';
 
 const PdcSection: React.FC = () => {
   const { perfil, user } = useAuthStore();
@@ -48,18 +49,29 @@ const PdcSection: React.FC = () => {
 
   const [form, setForm] = useState({
     identificacion: {
+      distrito_educativo: '',
       unidad_educativa: perfil?.unidad_educativa || '',
       nivel: '',
       anio_escolaridad: '',
       area: '',
       trimestre: '2do',
-      tiempo: '4 semanas',
+      fecha_inicio: '',
+      fecha_fin: '',
+      tiempo: '',
+      semanas: '4',
+      periodos_por_semana: '3',
+      duracion_periodo: '45',
       docente: docenteNombre,
     },
     contexto: {
+      use_psp: true,
       psp_titulo: '',
       psp_actividad: '',
       objetivo_holistico_pat: '',
+      objetivo_aprendizaje: '',
+      producto: '',
+      metodologia: '',
+      tipo_evaluacion: '',
     },
     variables: {
       contenidos: '',
@@ -79,7 +91,7 @@ const PdcSection: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
 
-  const update = (path: string, value: string) => {
+  const update = (path: string, value: any) => {
     setForm(prev => {
       const clone: any = structuredClone(prev);
       const keys = path.split('.');
@@ -90,19 +102,154 @@ const PdcSection: React.FC = () => {
     });
   };
 
+  const setPlanningMode = (mode: PlanningMode) => {
+    setForm(prev => {
+      const clone: any = structuredClone(prev);
+      clone.contexto.use_psp = mode === 'with_psp';
+      return clone;
+    });
+  };
+
+
+
+  const validateForm = () => {
+    const distritoEducativo = form.identificacion.distrito_educativo.trim();
+    const area = form.identificacion.area.trim();
+    const nivel = form.identificacion.nivel.trim();
+    const anio = form.identificacion.anio_escolaridad.trim();
+    const fechaInicio = form.identificacion.fecha_inicio.trim();
+    const fechaFin = form.identificacion.fecha_fin.trim();
+    const semanas = form.identificacion.semanas.trim();
+    const periodosPorSemana = form.identificacion.periodos_por_semana.trim();
+    const duracionPeriodo = form.identificacion.duracion_periodo.trim();
+
+    const contenidos = form.variables.contenidos
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    if (!area) {
+      alert('Debes ingresar el área');
+      return false;
+    }
+    if (!nivel) {
+      alert('Debes ingresar el nivel');
+      return false;
+    }
+    if (!anio) {
+      alert('Debes ingresar el año de escolaridad');
+      return false;
+    }
+    if (!distritoEducativo) {
+      alert('Debes ingresar el distrito educativo');
+      return false;
+    }
+    if (!fechaInicio) {
+      alert('Debes ingresar la fecha de inicio');
+      return false;
+    }
+    if (!fechaFin) {
+      alert('Debes ingresar la fecha final');
+      return false;
+    }
+    if (!semanas) {
+      alert('Debes ingresar la cantidad de semanas');
+      return false;
+    }
+    if (!periodosPorSemana) {
+      alert('Debes ingresar la cantidad de periodos por semana');
+      return false;
+    }
+    if (!duracionPeriodo) {
+      alert('Debes ingresar la duración de cada periodo');
+      return false;
+    }
+    if (!contenidos.length) {
+      alert('Debes ingresar al menos un contenido');
+      return false;
+    }
+
+    if (form.contexto.use_psp) {
+      if (!form.contexto.psp_titulo.trim()) {
+        alert('Debes ingresar el título del PSP');
+        return false;
+      }
+      if (!form.contexto.psp_actividad.trim()) {
+        alert('Debes ingresar la actividad del PSP');
+        return false;
+      }
+      if (!form.contexto.objetivo_holistico_pat.trim()) {
+        alert('Debes ingresar el Objetivo Holístico PAT');
+        return false;
+      }
+    } else {
+      if (!form.contexto.objetivo_aprendizaje.trim()) {
+        alert('Debes ingresar el objetivo de aprendizaje');
+        return false;
+      }
+      if (!form.contexto.producto.trim()) {
+        alert('Debes ingresar el producto o evidencia esperada');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const buildPayload = () => {
     const contenidos = form.variables.contenidos
       .split('\n')
       .map(s => s.trim())
       .filter(Boolean);
 
-    return {
+    const distritoEducativo = form.identificacion.distrito_educativo.trim();
+    const fechaInicio = form.identificacion.fecha_inicio.trim();
+    const fechaFin = form.identificacion.fecha_fin.trim();
+    const semanas = form.identificacion.semanas.trim();
+    const periodosPorSemana = form.identificacion.periodos_por_semana.trim();
+    const duracionPeriodo = form.identificacion.duracion_periodo.trim();
+
+    const tiempoLabel =
+      semanas && periodosPorSemana
+        ? `${Number(semanas) * Number(periodosPorSemana)} periodos`
+        : '';
+
+    const payload: any = {
       ...form,
+      identificacion: {
+        ...form.identificacion,
+        distrito_educativo: distritoEducativo,
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        tiempo: tiempoLabel,
+        semanas,
+        periodos_por_semana: periodosPorSemana,
+        duracion_periodo: duracionPeriodo,
+      },
+      contexto: {
+        ...form.contexto,
+        use_psp: !!form.contexto.use_psp,
+      },
       variables: { contenidos },
     };
+
+    if (payload.contexto.use_psp) {
+      payload.contexto.objetivo_aprendizaje = '';
+      payload.contexto.producto = '';
+      payload.contexto.metodologia = '';
+      payload.contexto.tipo_evaluacion = '';
+    } else {
+      payload.contexto.psp_titulo = '';
+      payload.contexto.psp_actividad = '';
+      payload.contexto.objetivo_holistico_pat = '';
+    }
+
+    return payload;
   };
 
   const generar = async () => {
+    if (!validateForm()) return;
+
     setLoading(true);
     try {
       const payload = buildPayload();
@@ -111,6 +258,7 @@ const PdcSection: React.FC = () => {
         identificacion: payload.identificacion,
         contexto: payload.contexto,
         contenidos: payload.variables.contenidos,
+        mode: payload.contexto.use_psp ? 'with_psp' : 'without_psp',
       });
 
       const blob = await pdcService.generate(payload);
@@ -121,6 +269,9 @@ const PdcSection: React.FC = () => {
       a.download = 'PDC.docx';
       a.click();
       window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      console.error(e);
+      alert(e?.message ?? 'No se pudo generar el PDC');
     } finally {
       setLoading(false);
     }
@@ -207,9 +358,11 @@ const PdcSection: React.FC = () => {
       {/* MENU */}
       <div className="max-w-7xl mx-auto mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold text-textPrimary">PDC</h1>
-          <p className="text-sm text-textSecondary mt-1 max-w-2xl">
-            Genera un PDC o administra tu biblioteca de documentos finales.
+          <h1 className="text-2xl sm:text-3xl font-bold text-textPrimary tracking-tight">
+            PDC
+          </h1>
+          <p className="text-sm sm:text-[15px] text-textSecondary mt-1 max-w-2xl leading-relaxed">
+            Genera un Plan de Desarrollo Curricular o administra tu biblioteca de documentos finales.
           </p>
         </div>
 
@@ -250,8 +403,48 @@ const PdcSection: React.FC = () => {
               </p>
             </div>
 
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-textSecondary">
+                Modalidad de planificación
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPlanningMode('with_psp')}
+                  className={`px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+                    form.contexto.use_psp
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-background text-textPrimary border-border hover:opacity-90'
+                  }`}
+                >
+                  Con PSP
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPlanningMode('without_psp')}
+                  className={`px-4 py-3 rounded-xl border text-sm font-semibold transition ${
+                    !form.contexto.use_psp
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-background text-textPrimary border-border hover:opacity-90'
+                  }`}
+                >
+                  Sin PSP
+                </button>
+              </div>
+            </div>
+
             {/* Datos referenciales */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+              <Field label="Distrito educativo">
+                <input
+                  value={form.identificacion.distrito_educativo}
+                  onChange={e => update('identificacion.distrito_educativo', e.target.value)}
+                  className={inputClass}
+                  placeholder="Ej: Cercado"
+                />
+              </Field>
               <Field label="Unidad Educativa">
                 <input
                   value={form.identificacion.unidad_educativa}
@@ -299,15 +492,57 @@ const PdcSection: React.FC = () => {
                   <option value="3ro">3ro</option>
                 </select>
               </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 md:col-span-2">
+                <Field label="Fecha de inicio">
+                  <input
+                    value={form.identificacion.fecha_inicio}
+                    onChange={e => update('identificacion.fecha_inicio', e.target.value)}
+                    className={inputClass}
+                    placeholder="Ej: 2 de marzo"
+                  />
+                </Field>
 
-              <Field label="Tiempo / Duración">
-                <input
-                  value={form.identificacion.tiempo}
-                  onChange={e => update('identificacion.tiempo', e.target.value)}
-                  className={inputClass}
-                  placeholder="Ej: 4 semanas"
-                />
-              </Field>
+                <Field label="Fecha final">
+                  <input
+                    value={form.identificacion.fecha_fin}
+                    onChange={e => update('identificacion.fecha_fin', e.target.value)}
+                    className={inputClass}
+                    placeholder="Ej: 30 de marzo"
+                  />
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 md:col-span-2">
+                <Field label="Semanas">
+                  <input
+                    value={form.identificacion.semanas}
+                    onChange={e => update('identificacion.semanas', e.target.value)}
+                    className={inputClass}
+                    placeholder="Ej: 4"
+                    inputMode="numeric"
+                  />
+                </Field>
+
+                <Field label="Periodos por semana">
+                  <input
+                    value={form.identificacion.periodos_por_semana}
+                    onChange={e => update('identificacion.periodos_por_semana', e.target.value)}
+                    className={inputClass}
+                    placeholder="Ej: 3"
+                    inputMode="numeric"
+                  />
+                </Field>
+
+                <Field label="Duración del periodo (min)">
+                  <input
+                    value={form.identificacion.duracion_periodo}
+                    onChange={e => update('identificacion.duracion_periodo', e.target.value)}
+                    className={inputClass}
+                    placeholder="Ej: 45"
+                    inputMode="numeric"
+                  />
+                </Field>
+              </div>
             </div>
 
             <Field label="Área / Materia">
@@ -319,7 +554,7 @@ const PdcSection: React.FC = () => {
               />
             </Field>
 
-            {/* PSP */}
+            {/* PSP 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-textPrimary">PSP (Llave de la planificación)</h3>
 
@@ -352,20 +587,102 @@ const PdcSection: React.FC = () => {
                   placeholder="Ej: Desarrollamos principios de responsabilidad (Ser) mediante el estudio de la vida (Saber) para promover la salud integral (Decidir)."
                 />
               </Field>
-            </div>
+            </div>*/}
+            {form.contexto.use_psp ? (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-textPrimary">PSP (Llave de la planificación)</h3>
+
+                <Field label="Título del PSP">
+                  <textarea
+                    value={form.contexto.psp_titulo}
+                    onChange={e => update('contexto.psp_titulo', e.target.value)}
+                    rows={3}
+                    className={textareaClass}
+                    placeholder='Ej: "Fortalecimiento de la salud comunitaria y prevención del consumo de drogas"'
+                  />
+                </Field>
+
+                <Field label="Actividad del PSP">
+                  <textarea
+                    value={form.contexto.psp_actividad}
+                    onChange={e => update('contexto.psp_actividad', e.target.value)}
+                    rows={3}
+                    className={textareaClass}
+                    placeholder="Ej: Taller de sensibilización sobre efectos químicos de sustancias en el cuerpo."
+                  />
+                </Field>
+
+                <Field label="Objetivo Holístico PAT (input del docente)">
+                  <textarea
+                    value={form.contexto.objetivo_holistico_pat}
+                    onChange={e => update('contexto.objetivo_holistico_pat', e.target.value)}
+                    rows={3}
+                    className={textareaClass}
+                    placeholder="Ej: Desarrollamos principios de responsabilidad (Ser) mediante el estudio de la vida (Saber) para promover la salud integral (Decidir)."
+                  />
+                </Field>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-textPrimary">Planificación sin PSP</h3>
+
+                <Field label="Objetivo de aprendizaje">
+                  <textarea
+                    value={form.contexto.objetivo_aprendizaje}
+                    onChange={e => update('contexto.objetivo_aprendizaje', e.target.value)}
+                    rows={3}
+                    className={textareaClass}
+                    placeholder="Ej: Comprender y aplicar los contenidos de la unidad en situaciones concretas de aprendizaje."
+                  />
+                </Field>
+
+                <Field label="Producto o evidencia esperada">
+                  <textarea
+                    value={form.contexto.producto}
+                    onChange={e => update('contexto.producto', e.target.value)}
+                    rows={3}
+                    className={textareaClass}
+                    placeholder="Ej: Mapa conceptual, práctica escrita, exposición, informe breve."
+                  />
+                </Field>
+
+                <Field label="Metodología (opcional)">
+                  <input
+                    value={form.contexto.metodologia}
+                    onChange={e => update('contexto.metodologia', e.target.value)}
+                    className={inputClass}
+                    placeholder="Ej: Aprendizaje basado en problemas, práctica guiada, trabajo colaborativo"
+                  />
+                </Field>
+
+                <Field label="Tipo de evaluación (opcional)">
+                  <input
+                    value={form.contexto.tipo_evaluacion}
+                    onChange={e => update('contexto.tipo_evaluacion', e.target.value)}
+                    className={inputClass}
+                    placeholder="Ej: Formativa, sumativa, diagnóstica"
+                  />
+                </Field>
+              </div>
+            )}
 
             {/* Contenidos */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-textSecondary">
-                Temas / Contenidos (uno por línea)
+                Contenidos estructurados por semanas
               </label>
               <textarea
                 value={form.variables.contenidos}
                 onChange={e => update('variables.contenidos', e.target.value)}
-                rows={5}
+                rows={10}
                 className={textareaClass}
-                placeholder={'1. La célula y sus funciones.\n2. Tipos de tejidos orgánicos.'}
+                placeholder={
+                  'Semana 1\n• Conceptualización de la Geografía\n• Ramas de la Geografía\n• Geografía Física\n\nSemana 2\n• Importancia de la Geografía Física\n• Elementos de la Geografía Física'
+                }
               />
+              <p className="text-xs text-textSecondary">
+                Escribe los contenidos como en una planificación real: Por semana y con subpuntos.
+              </p>
             </div>
 
             <button
@@ -386,15 +703,33 @@ const PdcSection: React.FC = () => {
             {preview ? (
               <div className="space-y-6 text-textPrimary">
                 <Section title="I. Datos Referenciales">
+                  <KV k="Distrito educativo" v={preview.identificacion?.distrito_educativo} />
                   <KV k="Unidad Educativa" v={preview.identificacion?.unidad_educativa} />
+                  <KV k="Docente" v={preview.identificacion?.docente} />
                   <KV k="Nivel" v={preview.identificacion?.nivel} />
                   <KV k="Año de escolaridad" v={preview.identificacion?.anio_escolaridad} />
-                  <KV k="Trimestre" v={preview.identificacion?.trimestre} />
                   <KV k="Área" v={preview.identificacion?.area} />
-                  <KV k="Tiempo" v={preview.identificacion?.tiempo} />
+                  <KV k="Trimestre" v={preview.identificacion?.trimestre} />
+                  <KV
+                    k="Fecha"
+                    v={
+                      preview.identificacion?.fecha_inicio && preview.identificacion?.fecha_fin
+                        ? `Del: ${preview.identificacion?.fecha_inicio}  |  Al: ${preview.identificacion?.fecha_fin}`
+                        : ''
+                    }
+                  />
+                  <KV k="Semanas" v={preview.identificacion?.semanas} />
+                  <KV k="Periodos por semana" v={preview.identificacion?.periodos_por_semana} />
+                  <KV
+                    k="Duración del periodo"
+                    v={preview.identificacion?.duracion_periodo ? `${preview.identificacion?.duracion_periodo} min` : ''}
+                  />
+                  <KV k="Tiempo total" v={preview.identificacion?.tiempo} />
+                  <KV k="Modalidad" v={preview.mode === 'with_psp' ? 'Con PSP' : 'Sin PSP'} />
                 </Section>
 
-                <Section title="II. Planificación">
+              {preview.mode === 'with_psp' ? (
+                <Section title="II. Planificación con PSP">
                   <KV k="Título del PSP" v={preview.contexto?.psp_titulo} />
                   <KV k="Actividad del PSP" v={preview.contexto?.psp_actividad} />
                   <KV k="Objetivo Holístico PAT" v={preview.contexto?.objetivo_holistico_pat} />
@@ -407,11 +742,27 @@ const PdcSection: React.FC = () => {
                     </ul>
                   </div>
                 </Section>
+              ) : (
+                <Section title="II. Planificación sin PSP">
+                  <KV k="Objetivo de aprendizaje" v={preview.contexto?.objetivo_aprendizaje} />
+                  <KV k="Producto o evidencia" v={preview.contexto?.producto} />
+                  <KV k="Metodología" v={preview.contexto?.metodologia} />
+                  <KV k="Tipo de evaluación" v={preview.contexto?.tipo_evaluacion} />
+                  <div className="mt-3">
+                    <p className="text-sm text-textSecondary mb-2">Contenidos</p>
+                    <ul className="list-disc pl-6 space-y-1">
+                      {(preview.contenidos || []).map((c: string, i: number) => (
+                        <li key={i}>{c}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </Section>
+              )}
 
-                <p className="text-xs text-textSecondary">
-                  Luego el preview será del documento generado (Objetivo, Práctica, Teoría, Valoración, Producción, Recursos, Criterios).
-                </p>
-              </div>
+              <p className="text-xs text-textSecondary">
+                Luego el preview será del documento generado (Objetivo, Práctica, Teoría, Valoración, Producción, Recursos, Criterios).
+              </p>
+            </div>
             ) : (
               <div className="rounded-xl border border-border bg-background/40 p-5">
                 <p className="text-textSecondary">

@@ -2,8 +2,8 @@
 // services/http.ts
 import { useAuthStore } from '../store/authStore';
 
-//const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.siprebolivia.site';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+//const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.siprebolivia.site';
 
 class HttpError extends Error {
   status: number;
@@ -20,7 +20,7 @@ function safeJson(t: string) {
   try { return JSON.parse(t); } catch { return t; }
 }
 
-// ===== NUEVO: manejo central de sesión expirada (401/403) =====
+// manejo central de sesión expirada (401/403)
 let __sessionExpiredHandling = false;
 
 function handleSessionExpired(reason?: string) {
