@@ -2,8 +2,8 @@
 // services/http.ts
 import { useAuthStore } from '../store/authStore';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-//const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.siprebolivia.site';
+//const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://api.siprebolivia.site';
 
 class HttpError extends Error {
   status: number;
@@ -82,15 +82,6 @@ async function request<T>(path: string, options: RequestInit): Promise<T> {
   return data as T;
 }
 
-
-
-
-
-
-
-
-
-
 /**
  * POST FormData con progreso REAL de subida (upload.onprogress)
  * - NO usa localStorage
@@ -168,15 +159,7 @@ function postFormWithProgress<T>(
 }
 
 
-
-
-
-
-
-
-
-
-// ✅ NDJSON streaming helper (para application/x-ndjson)
+// NDJSON streaming helper (para application/x-ndjson)
 // Lee el body por chunks y dispara onEvent por cada línea JSON.
 async function postNdjsonStream(
   path: string,
@@ -213,7 +196,7 @@ async function postNdjsonStream(
     const data = text ? safeJson(text) : null;
     const msg = (data as any)?.detail || (data as any)?.message || `HTTP ${res.status}`;
 
-    // ✅ NUEVO: si token expiró / forbidden, cerramos sesión
+    // NUEVO: si token expiró / forbidden, cerramos sesión
     if (res.status === 401 || res.status === 403) {
       handleSessionExpired(typeof msg === 'string' ? msg : undefined);
     }
@@ -333,17 +316,8 @@ async function del<T>(path: string): Promise<T> {
 
 
 
-
-
-
-
-
-
-
-
-
 export const http = {
-  get:  <T>(path: string) => request<T>(path, { method: 'GET' }),
+  get: <T>(path: string) => request<T>(path, { method: 'GET' }),
 
   post: <T>(path: string, body?: any) =>
     request<T>(path, {
@@ -359,10 +333,11 @@ export const http = {
       body: body ? JSON.stringify(body) : undefined,
     }),
 
+  delete: <T>(path: string) => del<T>(path),
+
   postForm: <T>(path: string, form: FormData) =>
     request<T>(path, { method: 'POST', body: form }),
 
-  // ✅ NUEVO
   postFormWithProgress,
 
   postNdjsonStream,
@@ -371,7 +346,6 @@ export const http = {
 
   del,
   getBlob,
-
 };
 
 export { HttpError };

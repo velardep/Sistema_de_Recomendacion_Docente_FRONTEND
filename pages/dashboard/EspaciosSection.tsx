@@ -1,18 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { espaciosService } from '../../services/espaciosService';
+import { espaciosService, type EspacioArchivo as EspacioArchivoApi } from '../../services/espaciosService';
 import type { Espacio, EspacioConversation, EspacioMessageApi } from '../../types';
 import { IconPlus, IconSend, IconGrid, IconChat } from '../../shared/components/Icons';
 
 type UiMsg = { role: 'user' | 'assistant'; content: string };
 
-type EspacioArchivo = {
-  id: string;
-  filename_original: string;
-  mime_type: string;
-  size_bytes?: number | null;
-  deleted_at?: string | null;
-  created_at?: string;
-};
+type EspacioArchivo = EspacioArchivoApi;
 
 const safeArray = <T,>(v: any): T[] => (Array.isArray(v) ? v : []);
 const safeString = (v: any): string => (typeof v === 'string' ? v : (v == null ? '' : String(v)));
@@ -24,6 +17,19 @@ type CreateEspacioForm = {
   materia: string;
   descripcion: string;
 };
+
+
+const FRONT_ALLOWED_EXTENSIONS = ['.pdf', '.docx'];
+const FRONT_MAX_FILE_BYTES = 8 * 1024 * 1024;
+
+function getFileExtension(filename: string): string {
+  const lower = (filename || '').toLowerCase().trim();
+  const idx = lower.lastIndexOf('.');
+  return idx >= 0 ? lower.slice(idx) : '';
+}
+
+
+
 
 const EspaciosSection: React.FC = () => {
   const [espacios, setEspacios] = useState<Espacio[]>([]);
@@ -54,10 +60,12 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
   const [mobileEspaciosOpen, setMobileEspaciosOpen] = useState(false);
   const [mobileChatsOpen, setMobileChatsOpen] = useState(false);
 
-  // NUEVO ESTADO PARA ARCHIVOS
+  // ESTADO PARA ARCHIVOS
   const [loadingArchivos, setLoadingArchivos] = useState(false);
   const [archivosErr, setArchivosErr] = useState<string | null>(null);
   const [archivos, setArchivos] = useState<EspacioArchivo[]>([]);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [archivoActionMsg, setArchivoActionMsg] = useState<string | null>(null);
 
   // para ocultar/mostrar el apartado dentro de la tab Archivos
   const [showArchivosPanel, setShowArchivosPanel] = useState(true);
@@ -222,13 +230,43 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
     setArchivosErr(null);
     setLoadingArchivos(true);
     try {
-      const list = await (espaciosService as any).listArchivos(espacioId);
-      const alive = (list || []).filter((x: any) => !x.deleted_at);
-      setArchivos(alive);
+      const list = await espaciosService.listArchivos(espacioId);
+      setArchivos(Array.isArray(list) ? list : []);
     } catch (e: any) {
       setArchivosErr(e?.message ?? 'No se pudieron cargar los archivos');
     } finally {
       setLoadingArchivos(false);
+    }
+  };
+
+  const handleDeleteArchivo = async (archivo: EspacioArchivo) => {
+    if (!selectedEspacio) return;
+
+    const ok = window.confirm(`¿Eliminar "${archivo.filename_original}" y todo su procesamiento asociado?`);
+    if (!ok) return;
+
+    setArchivoActionMsg(null);
+    setArchivosErr(null);
+    setDeletingFileId(archivo.id);
+
+    try {
+      const res = await espaciosService.deleteArchivo(selectedEspacio.id, archivo.id);
+
+      if (!res?.ok) {
+        throw new Error(res?.detail || 'No se pudo eliminar el archivo');
+      }
+
+      setArchivoActionMsg(`Archivo eliminado correctamente: ${archivo.filename_original}`);
+      await refreshArchivos(selectedEspacio.id);
+
+      if (activeTab === 'chat') {
+        await refreshArchivos(selectedEspacio.id);
+      }
+    } catch (e: any) {
+      setArchivosErr(e?.message ?? 'No se pudo eliminar el archivo');
+    } finally {
+      setDeletingFileId(null);
+      window.setTimeout(() => setArchivoActionMsg(null), 4000);
     }
   };
 
@@ -307,7 +345,40 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
 
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
 
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const procTimerRef = useRef<number | null>(null);
+
+
+  const uploadMsgTimerRef = useRef<number | null>(null);
+
+  // Limpia cualquier temporizador pendiente del mensaje de subida.
+  const clearUploadMsgTimer = () => {
+    if (uploadMsgTimerRef.current) {
+      window.clearTimeout(uploadMsgTimerRef.current);
+      uploadMsgTimerRef.current = null;
+    }
+  };
+
+  // Programa el ocultamiento automático de mensajes de éxito o error.
+  const scheduleUploadFeedbackClear = (delayMs: number = 5000) => {
+    clearUploadMsgTimer();
+    uploadMsgTimerRef.current = window.setTimeout(() => {
+      setUploadMsg(null);
+      setUploadError(null);
+      resetUploadVisualState();
+      uploadMsgTimerRef.current = null;
+    }, delayMs);
+  };
+
+  // Oculta el estado visual de subida/procesamiento cuando el flujo ya terminó.
+  const resetUploadVisualState = () => {
+    setUploading(false);
+    setProcessing(false);
+    setUploadPct(0);
+    setProcPct(0);
+    stopProcAnim();
+  };
 
   const stopProcAnim = () => {
     if (procTimerRef.current) {
@@ -331,20 +402,43 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
   };
 
   useEffect(() => {
-    return () => stopProcAnim();
+    return () => {
+      stopProcAnim();
+      clearUploadMsgTimer();
+    };
   }, []);
 
   const openFilePicker = () => {
+    clearUploadMsgTimer();
     setUploadMsg(null);
+    setUploadError(null);
     fileInputRef.current?.click();
   };
+
 
   const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f || !selectedEspacio) return;
 
+    const ext = getFileExtension(f.name);
+
     setUploadMsg(null);
+    setUploadError(null);
+
+    // Validación rápida en frontend: solo PDF y DOCX.
+    if (!FRONT_ALLOWED_EXTENSIONS.includes(ext)) {
+      setUploadError('Formato no permitido. Solo se admiten archivos PDF y DOCX.');
+      scheduleUploadFeedbackClear(5000);
+      return;
+    }
+
+    // Validación rápida en frontend: tamaño bruto máximo de 8 MB.
+    if (f.size > FRONT_MAX_FILE_BYTES) {
+      setUploadError('El archivo supera el tamaño máximo permitido de 8 MB.');
+      scheduleUploadFeedbackClear(5000);
+      return;
+    }
 
     // reset visual
     setUploading(true);
@@ -361,21 +455,42 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
           const clamped = Math.max(0, Math.min(100, Math.round(pct)));
           setUploadPct(clamped);
 
-          if (clamped >= 100 && !processing) {
+          if (clamped >= 100) {
             setUploading(false);
+            setProcessing(true);
             startProcAnim();
-            setUploadMsg(`⏳ Archivo subido. Procesando contenido... (puede tardar si es grande)`);
+            setUploadMsg('⏳ Archivo enviado. Procesando contenido...');
           }
         }
       );
 
       stopProcAnim();
-      setProcessing(false);
-      setProcPct(100);
       setUploading(false);
       setUploadPct(100);
 
-      setUploadMsg(`✅ "${f.name}" subido correctamente. Chunks: ${res.chunks_insertados}`);
+      const rawRes: any = res;
+
+      // Si backend responde ok:false, el archivo fue rechazado y no debe mostrarse como éxito.
+      if (!rawRes?.ok) {
+        setProcessing(false);
+        setProcPct(0);
+        setUploadMsg(null);
+        setUploadError(rawRes?.detail ?? `No se pudo procesar "${f.name}".`);
+        scheduleUploadFeedbackClear(6000);
+        return;
+      }
+
+      setProcessing(false);
+      setProcPct(100);
+      setUploadError(null);
+
+      const chunksInsertados =
+        typeof rawRes?.chunks_insertados === 'number'
+          ? rawRes.chunks_insertados
+          : 0;
+
+      setUploadMsg(`✅ "${f.name}" procesado correctamente. Chunks: ${chunksInsertados}`);
+      scheduleUploadFeedbackClear(5000);
 
       await refreshArchivos(selectedEspacio.id);
     } catch (err: any) {
@@ -388,18 +503,22 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
         setProcessing(true);
         setProcPct(92);
         setUploadPct(100);
-        setUploadMsg(
-          `⏳ "${f.name}" fue enviado. El servidor tardó en responder (archivo grande).\n` +
-          `Es normal: puede seguir procesando en segundo plano. Revisa en 1–3 min si ya aparece el contenido.`
+
+        setUploadError(
+          `El servidor tardó demasiado en responder para "${f.name}". ` +
+          `Si el archivo era grande, revisa si el backend sigue procesándolo o vuelve a intentarlo con un archivo más pequeño.`
         );
+        scheduleUploadFeedbackClear(7000);
         return;
       }
 
       setProcessing(false);
       setProcPct(0);
       setUploadPct(0);
+      setUploadMsg(null);
 
-      setUploadMsg(`❌ No se pudo subir "${f.name}". ${err?.message ?? 'Error'}`);
+      setUploadError(err?.message ?? `No se pudo subir "${f.name}".`);
+      scheduleUploadFeedbackClear(6000);
     }
   };
 
@@ -616,7 +735,7 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                       </button>
                     </div>
 
-                    {/*<div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         onClick={() => setActiveTab('chat')}
                         className={`px-4 py-2 text-xs rounded-lg transition-all ${
@@ -628,19 +747,17 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                         Chat
                       </button>
 
-                      
                       <button
                         onClick={() => setActiveTab('archivos')}
                         className={`px-4 py-2 text-xs rounded-lg transition-all ${
                           activeTab === 'archivos'
                             ? 'bg-accent text-black'
-                            : 'bg-black/20 border border-border hover:bg-white/5'
+                            : 'bg-background border border-border hover:bg-white/5'
                         }`}
                       >
                         Archivos
                       </button>
-                      
-                    </div>*/}
+                    </div>
                   </div>
                 )}
               </div>
@@ -654,7 +771,8 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                       Base de conocimiento del espacio
                     </div>
                     <div className="text-[13px] text-textSecondary mt-1">
-                      Sube material necesario, mientras mas pesado sea el archivo mas tardará en procesar, se recomienda no subir archivos de más de 50mb.
+                      Sube material necesario en PDF o DOCX. Límite máximo: 8 MB por archivo. 
+                      Se recomienda contenido con texto real, no escaneado ni basado principalmente en imágenes.
                     </div>
                   </div>
 
@@ -664,7 +782,7 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                       disabled={!selectedEspacio || uploading || processing}
                       className="w-full lg:w-auto px-4 py-2.5 text-xs bg-accent/10 text-accent border border-accent/20 rounded-lg hover:bg-accent/20 transition-all disabled:opacity-50"
                     >
-                      Subir Archivos PDF o DOCX unicamente
+                      Subir archivo PDF o DOCX
                     </button>
 
                     {(uploading || uploadPct > 0) && (
@@ -689,7 +807,7 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                           <div className="h-full bg-accent transition-all" style={{ width: `${procPct}%` }} />
                         </div>
                         <div className="mt-1 opacity-70">
-                          Esto depende del tamaño del PDF y del análisis (chunks/embeddings).
+                          Esto depende del tamaño del archivo y del análisis interno (texto, chunks y embeddings).
                         </div>
                       </div>
                     )}
@@ -697,7 +815,7 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,.txt,.docx"
+                      accept=".pdf,.docx"
                       className="hidden"
                       onChange={onPickFile}
                     />
@@ -709,6 +827,17 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
             {err && (
               <div className="px-4 sm:px-6 py-3 text-sm text-red-400 border-b border-border bg-red-500/5">
                 {err}
+              </div>
+            )}
+
+            {uploadError && (
+              <div className="px-4 sm:px-6 py-4 border-b border-border">
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/30">
+                  <div className="text-red-400 text-lg">✕</div>
+                  <div className="text-sm text-red-300 font-medium whitespace-pre-wrap">
+                    {uploadError}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -841,109 +970,127 @@ const [showTopPanel, setShowTopPanel] = useState(() => window.innerWidth >= 1024
                   </div>
                 )}
 
-                {/*
                 {activeTab === 'archivos' && (
-                  <div className="flex-1 overflow-y-auto p-6">
-                    <div className="max-w-4xl mx-auto">
-                      <div className="flex items-center justify-between gap-3 mb-4">
-                        <div>
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+                    <div className="max-w-5xl mx-auto">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+                        <div className="min-w-0">
                           <h3 className="text-lg font-semibold">Archivos del espacio</h3>
-                          <p className="text-xs text-textSecondary mt-1">
-                            Estos archivos se guardan en Storage y el chat usa sus embeddings (se filtran eliminados).
+                          <p className="text-xs text-textSecondary mt-1 leading-relaxed">
+                            Aquí se muestran los archivos registrados del espacio y su estado de procesamiento.
                           </p>
                         </div>
 
-                        <button
-                          onClick={() => setShowArchivosPanel((s) => !s)}
-                          className="px-3 py-2 text-xs rounded-lg border border-border hover:bg-white/5 transition-all"
-                        >
-                          {showArchivosPanel ? 'Ocultar apartado' : 'Mostrar apartado'}
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                          {/*<button
+                            onClick={() => setShowArchivosPanel((s) => !s)}
+                            className="px-3 py-2 text-xs rounded-lg border border-border hover:bg-white/5 transition-all"
+                          >
+                            {showArchivosPanel ? 'Ocultar apartado' : 'Mostrar apartado'}
+                          </button>*/}
+
+                          <button
+                            onClick={() => selectedEspacio?.id && refreshArchivos(selectedEspacio.id)}
+                            className="px-3 py-2 text-xs rounded-lg border border-border hover:bg-white/5 transition-all"
+                            disabled={loadingArchivos}
+                          >
+                            {loadingArchivos ? 'Actualizando...' : 'Actualizar'}
+                          </button>
+                        </div>
                       </div>
 
                       {showArchivosPanel && (
-                        <div className="p-5 border border-border rounded-2xl bg-card/40">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="text-sm font-semibold">Listado</div>
-                            <button
-                              onClick={() => selectedEspacio?.id && refreshArchivos(selectedEspacio.id)}
-                              className="px-3 py-2 text-xs rounded-lg border border-border hover:bg-white/5"
-                              disabled={loadingArchivos}
-                            >
-                              {loadingArchivos ? 'Actualizando...' : 'Actualizar'}
-                            </button>
-                          </div>
+                        <div className="rounded-2xl border border-border bg-card/40 overflow-hidden">
+                          {archivoActionMsg && (
+                            <div className="px-4 py-3 border-b border-border bg-emerald-500/10 text-emerald-300 text-sm">
+                              {archivoActionMsg}
+                            </div>
+                          )}
 
                           {archivosErr && (
-                            <div className="mb-3 text-sm text-red-400">{archivosErr}</div>
+                            <div className="px-4 py-3 border-b border-border bg-red-500/10 text-red-300 text-sm">
+                              {archivosErr}
+                            </div>
                           )}
 
                           {loadingArchivos ? (
-                            <div className="text-sm opacity-60">Cargando archivos...</div>
+                            <div className="p-5 text-sm opacity-60">Cargando archivos...</div>
                           ) : archivos.length === 0 ? (
-                            <div className="text-sm text-textSecondary">
-                              Aún no hay archivos subidos en este espacio.
+                            <div className="p-5 text-sm text-textSecondary">
+                              Aún no hay archivos registrados en este espacio.
                             </div>
                           ) : (
-                            <div className="space-y-2">
-                              {archivos.map((a) => (
-                                <div
-                                  key={a.id}
-                                  className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-card"
-                                >
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-semibold truncate">{a.filename_original}</div>
-                                    <div className="text-[11px] text-textSecondary mt-1">
-                                      {a.mime_type || 'archivo'} • {formatBytes(a.size_bytes || 0)}
-                                      {a.created_at ? ` • ${new Date(a.created_at).toLocaleString()}` : ''}
+                            <div className="divide-y divide-border">
+                              {archivos.map((a) => {
+                                const isDeleting = deletingFileId === a.id;
+
+                                return (
+                                  <div
+                                    key={a.id}
+                                    className="p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <div className="text-sm font-semibold break-words">
+                                          {a.filename_original}
+                                        </div>
+
+                                        <span
+                                          className={`px-2 py-1 rounded-md text-[10px] font-semibold border ${
+                                            a.estado === 'processed'
+                                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                              : a.estado === 'failed'
+                                              ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                                              : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300'
+                                          }`}
+                                        >
+                                          {a.estado === 'processed'
+                                            ? 'Procesado'
+                                            : a.estado === 'failed'
+                                            ? 'Fallido'
+                                            : 'Procesando'}
+                                        </span>
+                                      </div>
+
+                                      <div className="mt-2 flex flex-col gap-1 text-[11px] text-textSecondary sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+                                        <span>{a.mime_type || 'archivo'}</span>
+                                        <span>{formatBytes(a.size_bytes || 0)}</span>
+                                        <span>Chunks: {typeof a.total_chunks === 'number' ? a.total_chunks : 0}</span>
+                                        {a.created_at && (
+                                          <span>{new Date(a.created_at).toLocaleString()}</span>
+                                        )}
+                                      </div>
+
+                                      {a.error_detail && (
+                                        <div className="mt-2 text-xs text-red-300 break-words">
+                                          {a.error_detail}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+                                      <button
+                                        className="w-full sm:w-auto px-3 py-2 text-xs rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 disabled:opacity-50 transition-all"
+                                        onClick={() => handleDeleteArchivo(a)}
+                                        disabled={isDeleting}
+                                      >
+                                        {isDeleting ? 'Eliminando...' : 'Eliminar'}
+                                      </button>
                                     </div>
                                   </div>
-
-                                  <div className="flex gap-2 shrink-0">
-                                    <button
-                                      className="px-3 py-2 text-xs rounded-lg border border-border hover:bg-white/5"
-                                      onClick={async () => {
-                                        try {
-                                          const blob = await (espaciosService as any).downloadArchivo(a.id);
-                                          downloadBlob(blob, a.filename_original || 'archivo');
-                                        } catch (e: any) {
-                                          setArchivosErr(e?.message ?? 'No se pudo descargar');
-                                        }
-                                      }}
-                                    >
-                                      Descargar
-                                    </button>
-
-                                    <button
-                                      className="px-3 py-2 text-xs rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10"
-                                      onClick={async () => {
-                                        const ok = confirm(`¿Eliminar "${a.filename_original}"?`);
-                                        if (!ok) return;
-                                        try {
-                                          await (espaciosService as any).deleteArchivo(a.id);
-                                          await refreshArchivos(selectedEspacio!.id);
-                                        } catch (e: any) {
-                                          setArchivosErr(e?.message ?? 'No se pudo eliminar');
-                                        }
-                                      }}
-                                    >
-                                      Eliminar
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
 
-                          <div className="mt-4 text-[11px] text-textSecondary opacity-80">
-                            Nota: Eliminar marca el archivo como borrado y se excluye del RAG.
+                          <div className="px-4 py-3 border-t border-border text-[11px] text-textSecondary opacity-80">
+                            Eliminar un archivo también borra sus embeddings, inferencias y etiquetas asociadas.
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
-                */}
 
                 {/* Input */}
                 <div className="border-t border-border bg-card px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
@@ -1222,15 +1369,6 @@ function formatBytes(bytes: number) {
   return `${b.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename || 'archivo';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
-}
+
 
 export default EspaciosSection;

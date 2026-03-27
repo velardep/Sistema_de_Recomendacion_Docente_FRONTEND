@@ -57,12 +57,20 @@ export type EspacioArchivo = {
   docente_id: string;
   espacio_id: string;
   filename_original: string;
-  storage_path: string;
-  mime_type: string;
+  mime_type?: string | null;
   size_bytes?: number | null;
   file_hash?: string | null;
-  deleted_at?: string | null;
+  total_chunks?: number;
+  estado: 'processing' | 'processed' | 'failed';
+  error_detail?: string | null;
   created_at?: string;
+};
+
+export type UploadArchivoEspacioResponse = {
+  ok: boolean;
+  chunks_insertados: number;
+  archivo: string;
+  detail?: string;
 };
 
 export const espaciosService = {
@@ -70,7 +78,7 @@ export const espaciosService = {
 
   get: (espacioId: string) => http.get<Espacio>(`/espacios/${espacioId}`),
 
-  // ✅ crear espacio
+  // crear espacio
   createEspacio: (payload: CreateEspacioPayload) =>
     http.post<Espacio>('/espacios', payload),
 
@@ -90,8 +98,7 @@ export const espaciosService = {
       content,
     }),
 
- 
-  // subir archivos al espacio (con progreso real)
+  // Sube un archivo al espacio y devuelve el resultado del procesamiento.
   uploadArchivo: (
     espacioId: string,
     file: File,
@@ -100,12 +107,20 @@ export const espaciosService = {
     const form = new FormData();
     form.append('file', file);
 
-    return http.postFormWithProgress<{ ok: boolean; chunks_insertados: number; archivo: string }>(
+    return http.postFormWithProgress<UploadArchivoEspacioResponse>(
       `/espacios/${espacioId}/archivos`,
       form,
       { onProgress }
     );
   },
+
+    // Lista los archivos registrados del espacio.
+    listArchivos: (espacioId: string) =>
+      http.get<EspacioArchivo[]>(`/espacios/${espacioId}/archivos`),
+
+    // Elimina el archivo del espacio y todo su procesamiento asociado.
+    deleteArchivo: (espacioId: string, fileId: string) =>
+      http.delete<{ ok: boolean; detail?: string }>(`/espacios/${espacioId}/archivos/${fileId}`),
     
 
     
