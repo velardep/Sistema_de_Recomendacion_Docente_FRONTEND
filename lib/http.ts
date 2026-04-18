@@ -1,8 +1,7 @@
 
-/**
- * STUB: En un entorno real, aquí configurarías Axios o Fetch
- * con interceptores para manejar el access_token y errores 401.
- */
+// services/http.ts
+
+// Este módulo centraliza las llamadas HTTP a la API, manejando tokens de autenticación, errores comunes (como sesión expirada) y proporcionando una interfaz simple para los servicios. También incluye un helper para manejar respuestas en formato NDJSON, útil para endpoints que envían datos en streaming.
 export const http = {
   async get<T>(url: string): Promise<T> {
     console.log(`[HTTP GET] ${url}`);

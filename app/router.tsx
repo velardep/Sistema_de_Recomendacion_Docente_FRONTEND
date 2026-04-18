@@ -1,4 +1,6 @@
+// app/router.tsx 
 
+// Este archivo define las rutas de la aplicación, usando React Router v6. Las rutas públicas (login, register) no requieren autenticación, mientras que las rutas protegidas (onboarding, dashboard) están envueltas en el componente RequireAuth, que verifica si el usuario está autenticado y tiene perfil configurado antes de permitir el acceso.
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from '../pages/LoginPage';

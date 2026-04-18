@@ -13,7 +13,7 @@ const Card: React.FC<{
   onAction?: (id: string) => void;
   cta?: string;
 }> = ({ item, snapshot7, snapshot30, onAction, cta }) => {
-  const featuresUsed = item.features_used || [];
+  const featuresUsed = item.features_used || []; 
 
   return (
     <div className="bg-card border border-border p-4 sm:p-5 lg:p-6 rounded-2xl hover:border-accent/50 transition-all flex h-full flex-col group">
@@ -76,7 +76,7 @@ const RecomendacionesSection: React.FC = () => {
     recomendacionesService.getRed3({ window_days: 30, force: false })
       .then(res => {
         if (!mounted) return;
-        setData(res);
+        setData(res as Red3RecomendacionesResponse);
         setLoading(false);
       })
       .catch(() => {
@@ -95,7 +95,7 @@ const RecomendacionesSection: React.FC = () => {
     try {
       setRefreshing(true);
       const res = await recomendacionesService.getRed3({ window_days: 30, force: true });
-      setData(res);
+      setData(res as Red3RecomendacionesResponse);
     } finally {
       setRefreshing(false);
     }

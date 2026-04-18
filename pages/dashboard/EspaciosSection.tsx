@@ -1,3 +1,5 @@
+// pages/dashboard/EspaciosSection.tsx
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { espaciosService, type EspacioArchivo as EspacioArchivoApi } from '../../services/espaciosService';
 import type { Espacio, EspacioConversation, EspacioMessageApi } from '../../types';
