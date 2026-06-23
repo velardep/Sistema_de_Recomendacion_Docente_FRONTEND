@@ -1,12 +1,38 @@
+# SIPRE — Frontend
 
+Interfaz web del Sistema de Recomendación Docente. Construida con React y TypeScript, permite a los docentes chatear con IA, generar planificaciones (PDC), gestionar espacios de trabajo con sus propios documentos y ver recomendaciones pedagógicas personalizadas.
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## Requisitos
 
+- Node.js 20+
+- Backend corriendo en `http://localhost:8000` (ver repo del backend)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+
+## Variables de entorno
+
+Crear un archivo `.env.local` en la raíz del proyecto:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+---
+
+## Instalación y ejecución
+
+```bash
+npm install
+npm run dev
+```
+
+Queda disponible en `http://localhost:3000`.
+
+## Build para producción
+
+```bash
+npm run build
+# Los archivos estáticos quedan en dist/
+```
